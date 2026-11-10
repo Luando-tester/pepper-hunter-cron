@@ -139,20 +139,28 @@ def http_curl(method, url, headers=None, obj=None, timeout=60):
 # ------------------------------------------------------------------ telegram
 def telegram_send(text):
     token = (os.environ.get("TELEGRAM_BOT_TOKEN") or "").strip()
-    chat = (os.environ.get("TELEGRAM_CHAT_ID") or "").strip()
-    if not token or not chat:
-        log("Telegram chua cau hinh - bo qua bao: %s" % text.split("\n")[0][:80])
+    chats = []
+    for _k in ("TELEGRAM_CHAT_ID", "TELEGRAM_CHAT_ID_2"):
+        _c = (os.environ.get(_k) or "").strip()
+        if _c and _c not in chats:
+            chats.append(_c)
+    if not token or not chats:
+        log("Telegram chua cau hinh - bo qua bao: %s" % text.split(chr(10))[0][:80])
         return False
-    st, raw = http_req("POST", "https://api.telegram.org/bot%s/sendMessage" % token,
-                       {"Content-Type": "application/json"},
-                       json.dumps({"chat_id": chat, "text": text[:3900]}).encode(), timeout=30)
-    try:
-        ok = st == 200 and json.loads(raw.decode()).get("ok") is True
-    except Exception:
-        ok = False
-    if not ok:
-        log("Telegram gui loi (HTTP %s)" % st)
-    return ok
+    ok_main = False
+    for _i, chat in enumerate(chats):
+        st, raw = http_req("POST", "https://api.telegram.org/bot%s/sendMessage" % token,
+                           {"Content-Type": "application/json"},
+                           json.dumps({"chat_id": chat, "text": text[:3900]}).encode(), timeout=30)
+        try:
+            ok = st == 200 and json.loads(raw.decode()).get("ok") is True
+        except Exception:
+            ok = False
+        if _i == 0:
+            ok_main = ok
+        if not ok:
+            log("Telegram gui loi (HTTP %s)" % st)
+    return ok_main
 
 # ------------------------------------------------------------------ cong sach
 DIRTY_PATTERNS = [
