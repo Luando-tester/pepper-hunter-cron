@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Kiem tra bien moi truong (chi do dai, khong in gia tri)
+      - name: Kiem tra secrets (do dai that qua indirect, getMe, /user)
         env:
           GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
@@ -14,8 +14,12 @@ jobs:
           GITHUB_PAT: ${{ secrets.GITHUB_PAT }}
         run: |
           for v in GEMINI_API_KEYS TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID GITHUB_PAT; do
-            echo "$v length=${#v}"
+            x="${!v}"
+            echo "$v real_length=${#x}"
           done
-          echo "--- telegram getChat tu runner (chi HTTP + ok):"
-          curl -s -o /tmp/tg.json -w "HTTP %{http_code}\n" -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getChat" -d "chat_id=${TELEGRAM_CHAT_ID}" || echo "curl loi"
-          python3 -c "import json; d=json.load(open('/tmp/tg.json')); print('telegram ok =', d.get('ok'), '| type =', (d.get('result') or {}).get('type'))" || echo "khong doc duoc json"
+          echo "--- telegram getMe:"
+          curl -s -o /tmp/gm.json -w "HTTP %{http_code}\n" "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getMe" || echo "curl loi"
+          python3 -c "import json; d=json.load(open('/tmp/gm.json')); print('getMe ok =', d.get('ok'))" || echo "khong doc duoc json"
+          echo "--- github /user bang GITHUB_PAT:"
+          curl -s -o /tmp/gu.json -w "HTTP %{http_code}\n" -H "Authorization: Bearer ${GITHUB_PAT}" -H "Accept: application/vnd.github+json" https://api.github.com/user || echo "curl loi"
+          python3 -c "import json; d=json.load(open('/tmp/gu.json')); print('login =', d.get('login'), '| message =', d.get('message'))" || echo "khong doc duoc json"
