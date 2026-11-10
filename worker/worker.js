@@ -1,5 +1,6 @@
 // Pepper Hunter - Cloudflare Worker: RUNNER CHINH chay dinh ky bang cron trigger.
-// Logic port tu hunter.py: keo keo THAT tu GitHub Search (label:bounty) -> cong sach
+// Logic port tu hunter.py: keo keo THAT tu GitHub Search (bo truy van noi rong
+// 13 truy van / 4 tap xoay vong theo tick - xem QUERY_SETS) -> cong sach
 // -> chong trung bang KV (binding SEEN) -> Gemini soan work pack -> bao Telegram.
 // Secrets (dat bang wrangler secret put / dashboard, KHONG ghi vao repo):
 //   GEMINI_API_KEYS - POOL toi da 10 key Gemini, ngan cach bang dau phay hoac
@@ -13,14 +14,43 @@
 //   (run:last chi giu 1 vong nen queue la noi bat lai keo da troi).
 
 const GEMINI_MODELS = ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"];
-const SEARCH_QUERIES = [
-  "is:issue is:open label:bounty code",
-  'is:issue is:open label:bounty "AI agent"',
-  "is:issue is:open label:bounty writing",
+// LUOI NOI RONG (11/11): bo truy van dong bo ca 3 tang (worker.js + hunter.py +
+// doer.py). Moi truy van co co hi = tin hieu cao (label bounty / co tien trong
+// tieu de). Worker goi GitHub Search KHONG auth (~10 req/phut theo IP egress
+// dung chung) nen XOAY VONG theo tick: moi tick chi chay 1 tap con (3-4 truy
+// van), chi so tap = phut UTC hien tai mod so tap - khong can luu trang thai.
+// Doer (auth, 30 req/phut) chay TRON bo moi vong; hunter.py chay tron bo moi
+// luot chay tay. Moi ung vien van qua NGUYEN cong sach hien co.
+const QUERY_SETS = [
+  // Tap 0 - cot loi: label:bounty x 3 y dinh (bo truy van goc)
+  [
+    { q: "is:issue is:open label:bounty code", hi: true },
+    { q: 'is:issue is:open label:bounty "AI agent"', hi: true },
+    { q: "is:issue is:open label:bounty writing", hi: true },
+  ],
+  // Tap 1 - tieu de/tien: "bounty" trong tieu de KHONG can label + dau hieu tien
+  [
+    { q: "is:issue is:open bounty in:title", hi: true },
+    { q: 'is:issue is:open "bounty $" in:title', hi: true },
+    { q: "is:issue is:open USDC bounty", hi: true },
+  ],
+  // Tap 2 - label bounty tran (keo khong chua tu y dinh) + reward + help wanted
+  [
+    { q: "is:issue is:open label:bounty", hi: true },
+    { q: "is:issue is:open reward bounty in:title", hi: false },
+    { q: 'is:issue is:open label:"help wanted" bounty', hi: false },
+  ],
+  // Tap 3 - nen tang bounty (algora/opire) + help wanted/reward + paid task
+  [
+    { q: "is:issue is:open algora bounty", hi: false },
+    { q: "is:issue is:open opire bounty", hi: false },
+    { q: 'is:issue is:open label:"help wanted" reward', hi: false },
+    { q: 'is:issue is:open "paid task" bounty', hi: false },
+  ],
 ];
 const MAX_PER_REPO = 2;
 const MAX_NEW_PER_RUN = 12;
-const PER_PAGE = 15;
+const PER_PAGE = 30;
 const MAX_GEMINI_KEYS = 10;
 
 // Pool key Gemini tu env: GEMINI_API_KEYS (ngan cach dau phay/xuong dong, toi da
@@ -96,11 +126,24 @@ async function fetchBounties(report) {
   const items = [];
   const seenUrl = new Set();
   const perRepo = {};
-  for (const q of SEARCH_QUERIES) {
+  // Xoay vong theo tick: 1 phut cron = 1 tap truy van (chi so theo phut UTC).
+  const setIdx = Math.floor(Date.now() / 60000) % QUERY_SETS.length;
+  const activeSet = QUERY_SETS[setIdx];
+  report.query_set = setIdx;
+  log("Tap truy van tick nay: #" + setIdx + " (" + activeSet.length + " truy van)");
+  for (const entry of activeSet) {
+    const q = entry.q;
     const url = "https://api.github.com/search/issues?q=" + encodeURIComponent(q)
       + "&sort=created&order=desc&per_page=" + PER_PAGE;
     try {
       const resp = await fetch(url, { headers: { "User-Agent": "pepper-hunter-worker/1.0", "Accept": "application/vnd.github+json" } });
+      if (resp.status === 403 || resp.status === 429) {
+        // Rate limit cua IP egress dung chung: ghi nhan roi bo qua em truy
+        // van nay; tick sau (tap ke) chay tiep, khong lam chet vong.
+        report.errors.push("GitHub search '" + q + "' rate-limit (HTTP " + resp.status + ") - bo qua");
+        log("GitHub rate-limit (HTTP " + resp.status + ") o '" + q + "' - bo qua truy van nay");
+        continue;
+      }
       if (!resp.ok) throw new Error("HTTP " + resp.status);
       const data = await resp.json();
       for (const it of data.items || []) {
@@ -261,7 +304,7 @@ async function telegramSend(token, chatId, text) {
 }
 
 async function runHunt(env) {
-  const report = { at: new Date().toISOString(), fetched: 0, processed: 0, new_clean: [], dirty: 0, skipped_site_credit: 0, notified: 0, errors: [], config: {} };
+  const report = { at: new Date().toISOString(), fetched: 0, processed: 0, new_clean: [], dirty: 0, skipped_site_credit: 0, notified: 0, kv_writes: 0, errors: [], config: {} };
   const geminiPool = parseKeyPool(env);
   const poolState = { deadKeys: new Set(), goneModels: new Map() };
   const cleanDeals = [];
@@ -277,6 +320,22 @@ async function runHunt(env) {
     return report;
   }
 
+  // Ghi KV qua 1 cua duy nhat de DEM so lan ghi (KV free gioi han ~1000 lan
+  // ghi/ngay; ghi vo dieu kien queue + run:last moi tick tung lam vo tran
+  // 10/11). Loi ghi (ke ca het quota) chi log + ghi vao errors, KHONG lam
+  // chet vong chay.
+  async function kvPut(key, value) {
+    try {
+      await env.SEEN.put(key, value);
+      report.kv_writes += 1;
+      return true;
+    } catch (e) {
+      log("LOI ghi KV " + key + ": " + e.message);
+      report.errors.push("ghi KV " + key + " loi: " + e.message);
+      return false;
+    }
+  }
+
   const items = await fetchBounties(report);
   report.fetched = items.length;
   log("Tim thay " + items.length + " ung vien tho tu GitHub");
@@ -286,7 +345,9 @@ async function runHunt(env) {
     const seenBefore = await env.SEEN.get("url:" + it.url);
     if (seenBefore) continue;
     const hits = cleanGate(it.title + " " + (it.excerpt || ""));
-    await env.SEEN.put("url:" + it.url, new Date().toISOString());
+    // Danh dau seen: chi xay ra voi muc MOI that su duoc xu ly (toi da
+    // MAX_NEW_PER_RUN/vong) - day la ghi theo su kien, khong phai ghi moi tick.
+    await kvPut("url:" + it.url, new Date().toISOString());
     report.processed += 1;
     if (hits.length) {
       report.dirty += 1;
@@ -334,37 +395,39 @@ async function runHunt(env) {
     }
   } catch (e) { queue = []; }
   const qUrls = new Set(queue.map((d) => d.url));
+  let appended = 0;
   for (const d of cleanDeals) {
     if (!qUrls.has(d.url)) {
       queue.push({ title: d.title, url: d.url, budget_usd: d.budget_usd, pack_mode: d.pack_mode, pack: d.pack, ts: report.at });
       qUrls.add(d.url);
+      appended += 1;
     }
   }
   if (queue.length > 100) queue = queue.slice(queue.length - 100);
-  try {
-    await env.SEEN.put("queue", JSON.stringify(queue));
-  } catch (e) {
-    log("LOI ghi KV queue: " + e.message);
-    report.errors.push("ghi KV queue loi: " + e.message);
+  // Chi ghi queue khi that su co keo moi duoc them (truoc day ghi MOI tick =
+  // ~1440 lan/ngay, vuot han muc ghi KV free 1000/ngay).
+  if (appended > 0) {
+    await kvPut("queue", JSON.stringify(queue));
   }
   report.queue_size = queue.length;
-  // Luu vong chay gan nhat vao KV cho tang TU LAM (doer) doc qua GET /latest.
-  try {
-    await env.SEEN.put("run:last", JSON.stringify({
+  // run:last cho tang TU LAM (doer) doc qua GET /latest: chi ghi khi co keo
+  // sach moi (noi dung thay doi that) hoac heartbeat thua ~15 tick/lan (phut
+  // 0/15/30/45) de /latest van co dau thoi gian tuoi. Tick yen tinh khong ghi.
+  const heartbeatTick = new Date().getMinutes() % 15 === 0;
+  if (cleanDeals.length > 0 || heartbeatTick) {
+    await kvPut("run:last", JSON.stringify({
       ts: report.at,
       fetched: report.fetched,
       new_clean: report.new_clean.length,
       skipped_site_credit: report.skipped_site_credit,
       dirty: report.dirty,
+      kv_writes: report.kv_writes + 1,
       deals: cleanDeals,
     }));
-  } catch (e) {
-    log("LOI ghi KV run:last: " + e.message);
-    report.errors.push("ghi KV run:last loi: " + e.message);
   }
   log("Xong vong: xu ly " + report.processed + " moi, sach " + report.new_clean.length
     + ", ban " + report.dirty + ", bo qua site credit " + report.skipped_site_credit
-    + ", da bao Telegram " + report.notified);
+    + ", da bao Telegram " + report.notified + ", ghi KV " + report.kv_writes + " lan");
   return report;
 }
 

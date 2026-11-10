@@ -13,8 +13,12 @@ log tóm tắt, **không chứa bất kỳ key/token nào** (mọi bí mật n�
 | **GitHub Actions** (`.github/workflows/hunter.yml`) | **Chỉ chạy tay** (workflow_dispatch) khi cần việc nặng: chạy `hunter.py` sinh work pack đầy đủ và commit vào repo. Không còn lịch cron — để tiết kiệm phút Actions. |
 | **`hunter.py`** | Bản Python stdlib tương đương Worker, dùng để test local và cho lượt chạy tay trên Actions. |
 
-Luồng mỗi vòng quét: GitHub Search API `label:bounty state:open` (ý định code /
-AI agent / writing, tối đa 2 issue/repo, lọc PR) → trích ngân sách từ tiêu đề
+Luồng mỗi vòng quét: GitHub Search API — **bộ truy vấn nới rộng 13 truy vấn**
+(11/11: `label:bounty` × ý định code / AI agent / writing + nhãn trần, "bounty"
+trong tiêu đề không cần label, dấu hiệu tiền trong tiêu đề, `help wanted`,
+algora/opire, reward/"paid task"; Worker **xoay vòng 4 tập theo tick** vì gọi
+không auth, doer/hunter chạy trọn bộ; tối đa 2 issue/repo, riêng truy vấn tín
+hiệu cao 3 issue/repo, lọc PR) → trích ngân sách từ tiêu đề
 (không ghi thì để "chưa ghi", **không bịa số**; "site credit" không tính là tiền)
 → cổng sạch loại kèo dính shill/spam/fake engagement/mule/laundering/gambling/
 betting/captcha… → bỏ qua kèo đã thấy → Gemini (**pool tối đa 10 key xoay vòng**

@@ -22,14 +22,29 @@ STATE_FILE = BASE / "state" / "seen.json"
 PACKS_DIR = BASE / "packs"
 
 GEMINI_MODELS = ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]
+# LUOI NOI RONG (11/11): bo truy van dong bo ca 3 tang (hunter.py + doer.py +
+# worker.js). Moi truy van la (query, hi): hi=True = tin hieu cao (label bounty
+# / co tien trong tieu de) -> cap 3 issue/repo; hi=False -> cap 2 issue/repo.
+# File nay chay tron bo moi luot; Worker xoay vong theo tap vi goi khong auth.
 SEARCH_QUERIES = [
-    "is:issue is:open label:bounty code",
-    'is:issue is:open label:bounty "AI agent"',
-    "is:issue is:open label:bounty writing",
+    ("is:issue is:open label:bounty code", True),
+    ('is:issue is:open label:bounty "AI agent"', True),
+    ("is:issue is:open label:bounty writing", True),
+    ("is:issue is:open label:bounty", True),
+    ("is:issue is:open bounty in:title", True),
+    ('is:issue is:open "bounty $" in:title', True),
+    ("is:issue is:open USDC bounty", True),
+    ('is:issue is:open label:"help wanted" bounty', False),
+    ('is:issue is:open label:"help wanted" reward', False),
+    ("is:issue is:open algora bounty", False),
+    ("is:issue is:open opire bounty", False),
+    ("is:issue is:open reward bounty in:title", False),
+    ('is:issue is:open "paid task" bounty', False),
 ]
 MAX_PER_REPO = 2
+MAX_PER_REPO_HI = 3
 MAX_NEW_PER_RUN = 12
-PER_PAGE = 15
+PER_PAGE = 30
 
 BANNED = [
     "shill", "spam", "fake engagement", "fake follower", "fake review",
@@ -130,7 +145,8 @@ def fetch_bounties():
     """Keo keo THAT tu GitHub Search API. Tra (items, errors)."""
     items, errors, seen_url = [], [], set()
     per_repo = {}
-    for q in SEARCH_QUERIES:
+    for q, hi in SEARCH_QUERIES:
+        cap = MAX_PER_REPO_HI if hi else MAX_PER_REPO
         url = ("https://api.github.com/search/issues?q=" + urllib.parse.quote(q)
                + "&sort=created&order=desc&per_page=%d" % PER_PAGE)
         try:
@@ -152,7 +168,7 @@ def fetch_bounties():
             ru = it.get("repository_url", "")
             if "/repos/" in ru:
                 repo = ru.split("/repos/", 1)[1]
-            if per_repo.get(repo, 0) >= MAX_PER_REPO:
+            if per_repo.get(repo, 0) >= cap:
                 continue
             if is_trap_repo(repo):
                 log("BO QUA repo bay bot (%s): %s" % (repo, title[:70]))

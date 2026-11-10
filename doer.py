@@ -71,13 +71,29 @@ RESEND_BACKOFF_SEC = int(os.environ.get("DOER_RESEND_BACKOFF_SEC") or 1800)
 # --- Intake 2: doer TU QUET GitHub Search (cung bo truy van + cong sach voi
 # hunter.py / worker.js). Day la duong bat lai keo da troi khoi /latest
 # (Worker chi giu vong gan nhat; keo con mo tren san la bat lai duoc).
+# LUOI NOI RONG (11/11): bo truy van dong bo ca 3 tang (doer.py + hunter.py +
+# worker.js). Moi truy van la (query, hi): hi=True = tin hieu cao (label bounty
+# / co tien trong tieu de) -> cap 3 issue/repo; hi=False -> cap 2 issue/repo.
+# Doer auth bang classic PAT (30 req/phut) nen chay TRON BO 13 truy van moi
+# vong nap; Worker khong auth nen xoay vong theo tap.
 SEARCH_QUERIES = [
-    "is:issue is:open label:bounty code",
-    'is:issue is:open label:bounty "AI agent"',
-    "is:issue is:open label:bounty writing",
+    ("is:issue is:open label:bounty code", True),
+    ('is:issue is:open label:bounty "AI agent"', True),
+    ("is:issue is:open label:bounty writing", True),
+    ("is:issue is:open label:bounty", True),
+    ("is:issue is:open bounty in:title", True),
+    ('is:issue is:open "bounty $" in:title', True),
+    ("is:issue is:open USDC bounty", True),
+    ('is:issue is:open label:"help wanted" bounty', False),
+    ('is:issue is:open label:"help wanted" reward', False),
+    ("is:issue is:open algora bounty", False),
+    ("is:issue is:open opire bounty", False),
+    ("is:issue is:open reward bounty in:title", False),
+    ('is:issue is:open "paid task" bounty', False),
 ]
 MAX_PER_REPO = 2
-SEARCH_PER_PAGE = 15
+MAX_PER_REPO_HI = 3
+SEARCH_PER_PAGE = 30
 MAX_NEW_PER_CYCLE = 12
 BANNED = [
     "shill", "spam", "fake engagement", "fake follower", "fake review",
@@ -317,11 +333,13 @@ def is_site_credit(text):
 
 
 def fetch_bounty_candidates():
-    """Intake 2: tu quet GitHub Search (label:bounty, 3 y dinh, cap 2/repo),
-    qua cong sach + bo qua site credit. Tra list {title, url, budget_usd, pack}
+    """Intake 2: tu quet GitHub Search (bo noi rong 13 truy van, cap 3/repo
+    cho truy van tin hieu cao, 2/repo cho con lai), qua cong sach + bo qua
+    site credit. Tra list {title, url, budget_usd, pack}
     (pack = excerpt cua issue). Loi tung truy van chi log."""
     items, seen_url, per_repo = [], set(), {}
-    for q in SEARCH_QUERIES:
+    for q, hi in SEARCH_QUERIES:
+        cap = MAX_PER_REPO_HI if hi else MAX_PER_REPO
         path = ("/search/issues?q=%s&sort=created&order=desc&per_page=%d"
                 % (urllib.parse.quote(q), SEARCH_PER_PAGE))
         st, data = gh_api("GET", path)
@@ -350,7 +368,7 @@ def fetch_bounty_candidates():
             ru = it.get("repository_url", "")
             if "/repos/" in ru:
                 repo = ru.split("/repos/", 1)[1]
-            if per_repo.get(repo, 0) >= MAX_PER_REPO:
+            if per_repo.get(repo, 0) >= cap:
                 continue
             if trap_repo_reason(html):
                 log("Intake2 BO QUA repo bay bot (%s): %s" % (repo, title[:70]))
