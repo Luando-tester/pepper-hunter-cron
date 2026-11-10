@@ -1,12 +1,12 @@
 # Pepper Hunter Doer - STATUS
 
-Dang chay binh thuong - cap nhat 19:49 VN, tong keo dang theo doi: 17, moi dang ky vong nay: 1
-Cap nhat: 2026-11-10 19:49:58 (VN) / 2026-11-10 12:49:58 (UTC)
-Worker /latest ts: 2026-11-10T12:48:03.727Z
+Dang chay binh thuong - cap nhat 19:52 VN, tong keo dang theo doi: 17, moi dang ky vong nay: 0
+Cap nhat: 2026-11-10 19:52:18 (VN) / 2026-11-10 12:52:18 (UTC)
+Worker /latest ts: 2026-11-10T12:52:03.811Z
 Tong keo da theo doi: 17
-Trang thai: applied=15, pipeline-test=1, working=1
+Trang thai: applied=14, lost=1, pipeline-test=1, working=1
 
-## Dang cho duoc chon (da nop don) (15)
+## Dang cho duoc chon (da nop don) (14)
 
 - [[Challenge] Independently review the release-signing design and the ceremony invite](https://github.com/Conxian/conxius-enclave-sdk/issues/726) - cho_duoc_chon/code - chua ghi ngan sach - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
 - [Specify scoped build-bounty rules, alpha funding and governance](https://github.com/ditto-assistant/ditto-subnet/issues/2044) - cho_duoc_chon/code - chua ghi ngan sach - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
@@ -17,7 +17,6 @@ Trang thai: applied=15, pipeline-test=1, working=1
 - [[radar] SN open bounty 2026-10-22T19:11](https://github.com/relayhop/sn-monetization-runtime/issues/1326) - cho_duoc_chon/viet - chua ghi ngan sach - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
 - [[Bounty] [Bounty $550] feat(cli): add JSON sequence gap serializer in src/cli/format_repo](https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4255) - cho_duoc_chon/code - $550.0 - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
 - [[Bounty] [Bounty $450] refactor(validator): extract checkpoint divisor constant in src/le](https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4258) - cho_duoc_chon/code - $450.0 - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
-- [[Challenge] Recompute the release-ceremony countdown from public evidence](https://github.com/Conxian/conxius-enclave-sdk/issues/721) - cho_duoc_chon/code - chua ghi ngan sach - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
 - [[QA Bounty] [P0] Model Routing & Failover](https://github.com/hanzoai/ai/issues/137) - cho_duoc_chon/code - chua ghi ngan sach - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
 - [[QA Bounty] [P0] Cross-Model API Compatibility](https://github.com/hanzoai/ai/issues/138) - cho_duoc_chon/code - chua ghi ngan sach - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
 - [[Bounty $1,500] audit(dex): resolve competing PR #77 vs PR #81 AMM fee-on-input divergence](https://github.com/PhanKhoa95/oss-bot-trap-benchmark/issues/85) - cho_duoc_chon/viet - $1500.0 - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
@@ -27,4 +26,8 @@ Trang thai: applied=15, pipeline-test=1, working=1
 ## Dang lam / san pham da xong, cho nop (1)
 
 - [test issue](https://github.com/Zimb/zimb/issues/1) - lam_ngay/code - chua ghi ngan sach
+
+## Thua / da co nguoi nhan / issue dong (1)
+
+- [[Challenge] Recompute the release-ceremony countdown from public evidence](https://github.com/Conxian/conxius-enclave-sdk/issues/721) - cho_duoc_chon/code - chua ghi ngan sach
 

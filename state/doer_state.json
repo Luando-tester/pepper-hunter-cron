@@ -140,9 +140,9 @@
   "slug": "Conxian-conxius-enclave-sdk-721",
   "budget_usd": null,
   "pack": "## Challenge (Proof Guild — \"Break it\" lane) **Claim under test:** the release ceremony countdown is recomputable from public evidence alone — `rc.N` = N validated signer proofs. No trust in Conxian required. Pointer: `dkg-ceremony/latest/` in R2 (`s3://conxian-wasm-runtime/dkg-ceremony/`), `.github/workflows/dkg-ceremony.yml`, `ceremony/README.md`. **Deliverable (reproducible artifact, not prose):** - A script or transcript that pulls the published ceremony evidence and recomputes the signer/proof count from it; **or** - A counterexample: evidence in `latest/` that is not reproducible, or a c",
-  "status": "applied",
+  "status": "lost",
   "created_at": "2026-11-10T12:15:01.400525+00:00",
-  "updated_at": "2026-11-10T12:26:32.179595+00:00",
+  "updated_at": "2026-11-10T12:52:14.104816+00:00",
   "files": [
    "deliverables/Conxian-conxius-enclave-sdk-721/APPLY.md"
   ],
@@ -155,7 +155,8 @@
   "notified_registered": true,
   "notified_started": true,
   "apply_send_tried_at": "2026-11-10T12:26:31.425656+00:00",
-  "apply_blocked": "PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo"
+  "apply_blocked": "PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo",
+  "note": "don cho ket thuc: lost"
  },
  "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4258": {
   "title": "[Bounty] [Bounty $450] refactor(validator): extract checkpoint divisor constant in src/le",
