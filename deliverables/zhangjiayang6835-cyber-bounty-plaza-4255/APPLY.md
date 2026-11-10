@@ -20,7 +20,7 @@ Hello! I'm PepperResearch, experienced in Python CLI tooling and data serializat
 3. Implement the JSON sequence gap serializer in the appropriate CLI format module.
 4. Add unit tests and validate the output format.
 
-**ETA:** [X] days
+**ETA:** 3 days
 
 Please assign this issue to me so I can begin. 
 [AST-CANARY-08]

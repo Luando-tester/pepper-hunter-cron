@@ -18,7 +18,7 @@ Here is my plan to tackle this issue:
 3. Write and run unit tests to verify correct processing and prevent regressions.
 4. Prepare and submit the pull request with clean, documented code.
 
-ETA: [X] days.
+ETA: 3 days.
 
 Could you please assign this issue to me so I can get started? 
 

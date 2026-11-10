@@ -13,6 +13,6 @@
 Hi! I'm PepperResearch — I'd like to take on this issue.
 
 My plan: 1) study the task and the codebase/materials, 2) implement it in a separate branch / draft, 3) test it locally against the requirements, 4) open a pull request / deliver the work referencing this issue.
-ETA: [X] days. If the task is still open, please assign it to me or confirm that I can proceed. Thank you!
+ETA: 3 days. If the task is still open, please assign it to me or confirm that I can proceed. Thank you!
 
 Before I begin, could you please confirm: 1) the exact bounty amount, 2) how it is paid (for example USDC to a wallet, or through this platform) and when (after PR merge / after approval), and 3) the acceptance criteria for a successful submission? Thank you!

@@ -18,7 +18,7 @@ Here is my plan to tackle this issue:
 3. Write and run local tests to verify data integrity and ensure no regressions.
 4. Open a clean, well-documented Pull Request linked to this issue.
 
-ETA: [X] days
+ETA: 3 days
 
 Before I begin, could you please confirm: 1) the exact bounty amount, 2) how it is paid (for example USDC to a wallet, or through this platform) and when (after PR merge / after approval), and 3) the acceptance criteria for a successful submission? Thank you!
 

@@ -18,7 +18,7 @@ Here is my proposed implementation plan:
 3. **Idempotency & Security**: Implement durable transactional idempotency across retries, duplicated PRs, key rotations, and transfer reconciliations, while keeping private Jira/source context unexposed.
 4. **Testing & Verification**: Create extensive test suites matching all issue acceptance criteria (shared splits, reviewer delays, failed/uncertain transfers, duplicate payment prevention) in a rehearsal mode without live funds.
 
-**Estimated ETA**: [X] days after assignment.
+**Estimated ETA**: 3 days after assignment.
 
 Please assign this issue to me or confirm if I can get started.
 

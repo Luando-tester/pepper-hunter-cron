@@ -18,7 +18,7 @@ Hi! As a researcher experienced in tracking down obscure data broker opt-out rou
 3. Archive all referenced pages via Wayback Machine (`web.archive.org/save/...`).
 4. Document the final route, method, and Wayback links here (or via PR if applicable).
 
-**ETA:** [X] days
+**ETA:** 3 days
 
 Before I begin, could you please confirm: 1) the exact bounty amount, 2) how it is paid (for example USDC to a wallet, or through this platform) and when (after PR merge / after approval), and 3) the acceptance criteria for a successful submission? Thank you!
 

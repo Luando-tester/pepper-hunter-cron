@@ -18,6 +18,6 @@ Here is my execution plan:
 3. Implement the fix on the `dev` branch with a clean diff (<= 25 lines) and add a regression test in `tests/test_quant_execution_guard.py`.
 4. Open the PR adhering strictly to the required watermarks (`<!-- PEER-AUDIT-WATERMARK: [BOT-DUEL-G701] -->`).
 
-**ETA:** [X] days (ready to start immediately upon assignment).
+**ETA:** 3 days (ready to start immediately upon assignment).
 
 Please assign this issue to me so I can begin!

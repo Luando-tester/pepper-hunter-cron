@@ -19,6 +19,6 @@ Here is my plan to tackle this issue:
 4. Verify the test passes locally against the `main` branch code path without editing the manifest.
 5. Submit the reproduction artifact via a PR.
 
-ETA: [X] days.
+ETA: 3 days.
 
 Could you please assign this issue to me? Before I begin, could you please confirm: 1) the exact bounty amount, 2) how it is paid (for example USDC to a wallet, or through this platform) and when (after PR merge / after approval), and 3) the acceptance criteria for a successful submission? Thank you!

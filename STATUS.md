@@ -1,12 +1,12 @@
 # Pepper Hunter Doer - STATUS
 
-Dang chay binh thuong - cap nhat 20:07 VN, tong keo dang theo doi: 17, moi dang ky vong nay: 0
-Cap nhat: 2026-11-10 20:07:24 (VN) / 2026-11-10 13:07:24 (UTC)
-Worker /latest ts: 2026-11-10T13:07:04.171Z
+Dang chay binh thuong - cap nhat 20:12 VN, tong keo dang theo doi: 17, moi dang ky vong nay: 0, loi da cach ly vong nay: 0
+Cap nhat: 2026-11-10 20:12:35 (VN) / 2026-11-10 13:12:35 (UTC)
+Worker /latest ts: 2026-11-10T13:12:03.876Z
 Tong keo da theo doi: 17
-Trang thai: applied=14, lost=1, pipeline-test=1, working=1
+Trang thai: applied=12, lost=1, pipeline-test=1, skipped_trap=2, working=1
 
-## Dang cho duoc chon (da nop don) (14)
+## Dang cho duoc chon (da nop don) (12)
 
 - [[Challenge] Independently review the release-signing design and the ceremony invite](https://github.com/Conxian/conxius-enclave-sdk/issues/726) - cho_duoc_chon/code - chua ghi ngan sach - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
 - [Specify scoped build-bounty rules, alpha funding and governance](https://github.com/ditto-assistant/ditto-subnet/issues/2044) - cho_duoc_chon/code - chua ghi ngan sach - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
@@ -19,8 +19,6 @@ Trang thai: applied=14, lost=1, pipeline-test=1, working=1
 - [[Bounty] [Bounty $450] refactor(validator): extract checkpoint divisor constant in src/le](https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4258) - cho_duoc_chon/code - $450.0 - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
 - [[QA Bounty] [P0] Model Routing & Failover](https://github.com/hanzoai/ai/issues/137) - cho_duoc_chon/code - chua ghi ngan sach - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
 - [[QA Bounty] [P0] Cross-Model API Compatibility](https://github.com/hanzoai/ai/issues/138) - cho_duoc_chon/code - chua ghi ngan sach - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
-- [[Bounty $1,500] audit(dex): resolve competing PR #77 vs PR #81 AMM fee-on-input divergence](https://github.com/PhanKhoa95/oss-bot-trap-benchmark/issues/85) - cho_duoc_chon/viet - $1500.0 - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
-- [[Bounty $1,600] security(guard): harden multi-tenant RAG & idempotent webhook against repl](https://github.com/PhanKhoa95/oss-bot-trap-benchmark/issues/88) - cho_duoc_chon/code - $1600.0 - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
 - [[Challenge] Capability manifest never advertises a non-routable adapter as supported](https://github.com/Conxian/conxian-gateway/issues/828) - cho_duoc_chon/code - chua ghi ngan sach - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
 
 ## Dang lam / san pham da xong, cho nop (1)
@@ -30,4 +28,9 @@ Trang thai: applied=14, lost=1, pipeline-test=1, working=1
 ## Thua / da co nguoi nhan / issue dong (1)
 
 - [[Challenge] Recompute the release-ceremony countdown from public evidence](https://github.com/Conxian/conxius-enclave-sdk/issues/721) - cho_duoc_chon/code - chua ghi ngan sach
+
+## Bo qua - repo bay bot (khong dang ky, khong gui don) (2)
+
+- [[Bounty $1,500] audit(dex): resolve competing PR #77 vs PR #81 AMM fee-on-input divergence](https://github.com/PhanKhoa95/oss-bot-trap-benchmark/issues/85) - cho_duoc_chon/viet - $1500.0 - ly do: repo PhanKhoa95/oss-bot-trap-benchmark chua dau hieu bay bot ('trap') - bo qua, khong dang ky, khong gui don
+- [[Bounty $1,600] security(guard): harden multi-tenant RAG & idempotent webhook against repl](https://github.com/PhanKhoa95/oss-bot-trap-benchmark/issues/88) - cho_duoc_chon/code - $1600.0 - ly do: repo PhanKhoa95/oss-bot-trap-benchmark chua dau hieu bay bot ('trap') - bo qua, khong dang ky, khong gui don
 

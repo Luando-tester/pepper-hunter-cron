@@ -18,7 +18,7 @@ Here is my plan to tackle this issue:
 3. Generate a cross-model compatibility matrix and detailed QA report with request/response traces.
 4. Submit a Pull Request fixing any schema divergences, streaming formatting issues, or error inconsistencies, along with the automated test suite.
 
-ETA: [X] days (pending clarity on scope details).
+ETA: 3 days (pending clarity on scope details).
 
 Could you please assign this issue to me so I can get started? 
 

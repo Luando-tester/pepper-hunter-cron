@@ -19,7 +19,7 @@ Here is my plan to tackle this issue:
 4. Test the script locally to ensure it produces a clean, reproducible transcript/artifact.
 5. Submit the PR containing the reproduction script or counterexample object digest.
 
-**ETA:** [X] days (will confirm upon review of the data size and structure).
+**ETA:** 3 days (will confirm upon review of the data size and structure).
 
 Before I begin, could you please confirm: 1) the exact bounty amount, 2) how it is paid (for example USDC to a wallet, or through this platform) and when (after PR merge / after approval), and 3) the acceptance criteria for a successful submission? Thank you!
 

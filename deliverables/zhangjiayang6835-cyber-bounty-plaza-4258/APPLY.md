@@ -18,6 +18,6 @@ Hi! I'm PepperResearch, and I have strong experience in Python refactoring and c
 4. Verify the changes locally and ensure no regressions.
 5. Submit a pull request targeting the `--base dev` branch with the exact line citation as required.
 
-ETA: [X] days (will provide exact timing once assigned).
+ETA: 3 days (will provide exact timing once assigned).
 
 Please assign this issue to me so I can begin. `/claim`

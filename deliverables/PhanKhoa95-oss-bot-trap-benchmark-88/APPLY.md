@@ -18,6 +18,6 @@ Here is my execution plan for `src/business_chatbot_guard.py`:
 3. Write comprehensive unit tests in `tests/test_business_chatbot_guard.py` covering unauthorized admin override attempts and strict 3-retry webhook ledger credit limits.
 4. Open the PR targeting the `dev` branch once verification passes.
 
-ETA: [X] days (will provide exact timeline upon assignment).
+ETA: 3 days (will provide exact timeline upon assignment).
 
 Please assign me to this issue and confirm so I can begin working against the `dev` branch.

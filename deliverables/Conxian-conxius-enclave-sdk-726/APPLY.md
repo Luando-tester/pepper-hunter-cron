@@ -19,7 +19,7 @@ Here is my proposed plan to review the release-signing design and signing paths:
 3. **Inspect Core Code Implementation**: Audit `src/enclave/threshold.rs` and `src/signing/threshold.rs` to verify signature binding correctness and state machine invariants.
 4. **Report & Format Findings**: Compile reproducible defects or unsound claims with concrete failing examples following `PROOF_GUILD_CHALLENGE_FORMAT.md`.
 
-Estimated ETA: [X] days from assignment.
+Estimated ETA: 3 days from assignment.
 
 Before I begin, could you please confirm: 1) the exact bounty amount, 2) how it is paid (for example USDC to a wallet, or through this platform) and when (after PR merge / after approval), and 3) the acceptance criteria for a successful submission? Thank you!
 

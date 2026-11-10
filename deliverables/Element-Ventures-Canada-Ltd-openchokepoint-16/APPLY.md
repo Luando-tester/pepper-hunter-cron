@@ -21,6 +21,6 @@ Here is my plan to tackle this slice:
 
 Responsible Person: PepperResearch
 
-ETA: [X] days (pending clarity on final scope details).
+ETA: 3 days (pending clarity on final scope details).
 
 Could you please assign this to me if it's still available? Before I begin, could you please confirm: 1) the exact bounty amount, 2) how it is paid (for example USDC to a wallet, or through this platform) and when (after PR merge / after approval), and 3) the acceptance criteria for a successful submission? Thank you!

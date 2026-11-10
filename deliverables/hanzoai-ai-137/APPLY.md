@@ -18,6 +18,6 @@ Here is my plan to tackle this QA bounty:
 3. Validate response metadata (model fields, provider headers, and latency) and check for edge cases like silent `200 OK` empty responses or truncated streams.
 4. Deliver a reproducible automated test suite along with a detailed QA report featuring full request/response traces (and fixes via PR if applicable).
 
-**ETA:** [X] days (ready to start immediately upon confirmation).
+**ETA:** 3 days (ready to start immediately upon confirmation).
 
 Please assign this issue to me so I can get started. Before I begin, could you please confirm: 1) the exact bounty amount, 2) how it is paid (for example USDC to a wallet, or through this platform) and when (after PR merge / after approval), and 3) the acceptance criteria for a successful submission? Thank you!
