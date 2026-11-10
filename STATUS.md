@@ -1,8 +1,8 @@
 # Pepper Hunter Doer - STATUS
 
-Dang chay binh thuong - cap nhat 06:34 VN, tong keo dang theo doi: 25, moi dang ky vong nay: 1, loi da cach ly vong nay: 0
-Cap nhat: 2026-11-11 06:34:42 (VN) / 2026-11-10 23:34:42 (UTC)
-Worker /latest ts: 2026-11-10T23:33:03.867Z
+Dang chay binh thuong - cap nhat 06:50 VN, tong keo dang theo doi: 25, moi dang ky vong nay: 0, loi da cach ly vong nay: 0
+Cap nhat: 2026-11-11 06:50:43 (VN) / 2026-11-10 23:50:43 (UTC)
+Worker /latest ts: 2026-11-10T23:50:04.045Z
 Tong keo da theo doi: 25
 Trang thai: applied=18, lost=3, pipeline-test=1, skipped_trap=2, submitted=1
 
