@@ -198,21 +198,29 @@ def http_json(method, url, headers=None, obj=None, timeout=60):
 
 def telegram_send(text):
     token = (os.environ.get("TELEGRAM_BOT_TOKEN") or "").strip()
-    chat = (os.environ.get("TELEGRAM_CHAT_ID") or "").strip()
-    if not token or not chat:
+    chats = []
+    for _k in ("TELEGRAM_CHAT_ID", "TELEGRAM_CHAT_ID_2"):
+        _c = (os.environ.get(_k) or "").strip()
+        if _c and _c not in chats:
+            chats.append(_c)
+    if not token or not chats:
         return False
-    body = urllib.parse.urlencode({"chat_id": chat, "text": text[:3900],
-                                   "disable_web_page_preview": "true"}).encode()
-    st, raw = http_req("POST", "https://api.telegram.org/bot%s/sendMessage" % token,
-                       {"Content-Type": "application/x-www-form-urlencoded"}, body, 30)
-    ok = False
-    try:
-        ok = bool(json.loads(raw).get("ok"))
-    except Exception:
-        pass
-    if not ok:
-        log("Telegram loi (HTTP %s): %s" % (st, raw[:160]))
-    return ok
+    ok_main = False
+    for _i, chat in enumerate(chats):
+        body = urllib.parse.urlencode({"chat_id": chat, "text": text[:3900],
+                                       "disable_web_page_preview": "true"}).encode()
+        st, raw = http_req("POST", "https://api.telegram.org/bot%s/sendMessage" % token,
+                           {"Content-Type": "application/x-www-form-urlencoded"}, body, 30)
+        ok = False
+        try:
+            ok = bool(json.loads(raw).get("ok"))
+        except Exception:
+            pass
+        if _i == 0:
+            ok_main = ok
+        if not ok:
+            log("Telegram loi (HTTP %s): %s" % (st, raw[:160]))
+    return ok_main
 
 
 def pat_fingerprint():
