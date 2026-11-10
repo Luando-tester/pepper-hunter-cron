@@ -1,0 +1,810 @@
+#!/usr/bin/env python3
+"""Pepper Hunter DOER - tang TU LAM chay bang GitHub Actions (workflow doer.yml).
+
+Worker Cloudflare chi SAN keo (GET /latest). Doer la thang THUC THI:
+doc keo sach moi -> phan loai (type + mode) -> lam san pham bang Gemini
+(pool key, secret GEMINI_API_KEYS) -> gui Telegram -> ghi state + STATUS.md
+-> commit vao repo. Job vong lap tu noi: moi 60s 1 vong, toi da ~330 phut,
+gan het gio thi tu workflow_dispatch chay run moi (gh CLI + GITHUB_TOKEN).
+
+MAY TRANG THAI (luan chot 18:01 10/11 - nhieu keo phai THANG/DUOC CHON truoc):
+  mode=lam_ngay      : mo tu do -> lam san pham ngay (working) -> nop (submitted)
+  mode=cho_duoc_chon : phai duoc giao viec truoc:
+      new -> applied (sinh APPLY.md = don xin nhan viec; gui comment that
+             bang GITHUB_PAT neu co, chua co PAT thi don nam san trong repo)
+          -> assigned (issue duoc assign cho minh / chu xac nhan / label)
+          -> working (luc nay moi lam san pham) -> submitted -> cho_tra
+          -> da_tra (CHI khi co bang chung tien ve - doer khong tu suy doan)
+      applied ma issue dong / co nguoi khac nhan -> lost; cho qua lau -> het_han
+
+Bien moi truong:
+  WORKER_URL          mac dinh https://pepper-hunter.pepperresearch.workers.dev
+  GEMINI_API_KEYS     pool toi da 10 key (phay/xuong dong); GEMINI_API_KEY = pool 1
+  TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID   bao Telegram (thieu -> bo qua, chi log)
+  GITHUB_PAT          PAT cua Luando-tester: gui comment xin viec, fork + mo PR.
+                      Thieu PAT: doer van soan don/san pham, trang thai dung o
+                      applied/working kem ghi chu "cho PAT", KHONG gia vo da gui.
+  GH_TOKEN/GITHUB_TOKEN  cho lenh gh tu dispatch run moi o cuoi job.
+  OUR_USERNAME        mac dinh Luando-tester (tai khoan duoc assign).
+  DOER_LOOP_BUDGET_MIN=330  DOER_POLL_SEC=60  DOER_ONCE=1 (chay 1 vong roi thoat)
+  DOER_GIT=1/0        commit+push (tu bat khi GITHUB_ACTIONS=true)
+  DOER_DISPATCH=1/0   tu noi run moi (tu bat khi GITHUB_ACTIONS=true)
+  DOER_PR_DRAFT=1     mo PR dang draft (mac dinh 1; =0 de mo PR thuong)
+  APPLIED_EXPIRE_DAYS=30  don cho qua so ngay nay -> het_han
+Chi dung thu vien chuan. Loi tung nguon chi log, khong giet vong lap.
+"""
+import json, os, re, subprocess, sys, time, urllib.request, urllib.error, urllib.parse
+from datetime import datetime, timezone, timedelta
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATE_PATH = os.path.join(BASE_DIR, "state", "doer_state.json")
+STATUS_PATH = os.path.join(BASE_DIR, "STATUS.md")
+DELIV_DIR = os.path.join(BASE_DIR, "deliverables")
+
+WORKER_URL = (os.environ.get("WORKER_URL") or "https://pepper-hunter.pepperresearch.workers.dev").rstrip("/")
+GEMINI_MODELS = ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"]
+MAX_GEMINI_KEYS = 10
+OUR_USERNAME = os.environ.get("OUR_USERNAME") or "Luando-tester"
+LOOP_BUDGET_MIN = float(os.environ.get("DOER_LOOP_BUDGET_MIN") or 330)
+POLL_SEC = int(os.environ.get("DOER_POLL_SEC") or 60)
+APPLIED_EXPIRE_DAYS = int(os.environ.get("APPLIED_EXPIRE_DAYS") or 30)
+IN_ACTIONS = os.environ.get("GITHUB_ACTIONS") == "true"
+DOER_ONCE = os.environ.get("DOER_ONCE") == "1"
+DOER_GIT = os.environ.get("DOER_GIT", "1" if IN_ACTIONS else "0") == "1"
+DOER_DISPATCH = os.environ.get("DOER_DISPATCH", "1" if IN_ACTIONS else "0") == "1"
+PR_DRAFT = os.environ.get("DOER_PR_DRAFT", "1") != "0"
+
+ASK_MONEY_EN = ("Before I begin, could you please confirm: 1) the exact bounty amount, "
+                "2) how it is paid (for example USDC to a wallet, or through this platform) "
+                "and when (after PR merge / after approval), and 3) the acceptance criteria "
+                "for a successful submission? Thank you!")
+NOTE_DRAFT = "<!-- Ban thao do Gemini lam qua Pepper Hunter Doer - CHUA NOP, can duyet truoc khi gui. -->\n\n"
+
+ASSIGN_SIGNALS = [
+    "comment to be assigned", "to be assigned", "ask before working",
+    "ask before you start", "ask first", "will assign", "assignment required",
+    "get assigned", "before working on", "please comment before",
+    "comment to claim", "comment before working", "algora", "opire",
+]
+OPEN_SIGNALS = [
+    "first pr", "first come", "first-come", "no assignment needed",
+    "no need to be assigned", "no assignment", "just open a pr",
+    "open a pr directly", "feel free to open a pr", "submit a pr directly",
+]
+ASSIGN_CONFIRM_WORDS = ["assigned", "go ahead", "all yours", "please proceed",
+                        "you're on it", "you are on it", "feel free to start",
+                        "looking forward to your pr"]
+VIET_WORDS = ["write", "writing", "article", "blog", "content", "documentation",
+              "docs", "readme", "tutorial", "guide", "research", "copywriting",
+              "translate", "translation", "essay", "newsletter", "post"]
+CODE_WORDS = ["fix", "bug", "implement", "feature", "refactor", "api", "sdk",
+              "library", "function", "test", "ci", "performance", "code",
+              "develop", "script", "bot", "integration", "add support",
+              "endpoint", "cli", "parser"]
+
+
+def log(msg):
+    print("[DOER %s] %s" % (datetime.now(timezone.utc).strftime("%H:%M:%S"), msg), flush=True)
+
+
+def now_iso():
+    return datetime.now(timezone.utc).isoformat()
+
+
+def parse_key_pool():
+    raw = (os.environ.get("GEMINI_API_KEYS") or "").strip()
+    parts = []
+    if raw:
+        parts = [p.strip() for p in re.split(r"[,\n]", raw) if p.strip()]
+    else:
+        single = (os.environ.get("GEMINI_API_KEY") or "").strip()
+        if single:
+            parts = [single]
+    pool, seen = [], set()
+    for k in parts:
+        if k in seen:
+            continue
+        seen.add(k)
+        pool.append(k)
+        if len(pool) >= MAX_GEMINI_KEYS:
+            break
+    return pool
+
+
+def http_req(method, url, headers=None, data=None, timeout=60):
+    req = urllib.request.Request(url, method=method, data=data, headers=headers or {})
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return resp.status, resp.read().decode("utf-8", "replace")
+    except urllib.error.HTTPError as e:
+        return e.code, e.read().decode("utf-8", "replace")
+    except Exception as e:
+        return None, str(e)
+
+
+def http_json(method, url, headers=None, obj=None, timeout=60):
+    data = json.dumps(obj).encode() if obj is not None else None
+    h = dict(headers or {})
+    if obj is not None:
+        h["Content-Type"] = "application/json"
+    st, raw = http_req(method, url, h, data, timeout)
+    try:
+        return st, json.loads(raw)
+    except Exception:
+        return st, {"raw": raw[:400]}
+
+
+def telegram_send(text):
+    token = (os.environ.get("TELEGRAM_BOT_TOKEN") or "").strip()
+    chat = (os.environ.get("TELEGRAM_CHAT_ID") or "").strip()
+    if not token or not chat:
+        return False
+    body = urllib.parse.urlencode({"chat_id": chat, "text": text[:3900],
+                                   "disable_web_page_preview": "true"}).encode()
+    st, raw = http_req("POST", "https://api.telegram.org/bot%s/sendMessage" % token,
+                       {"Content-Type": "application/x-www-form-urlencoded"}, body, 30)
+    ok = False
+    try:
+        ok = bool(json.loads(raw).get("ok"))
+    except Exception:
+        pass
+    if not ok:
+        log("Telegram loi (HTTP %s): %s" % (st, raw[:160]))
+    return ok
+
+
+def gh_headers():
+    h = {"User-Agent": "pepper-hunter-doer/1.0", "Accept": "application/vnd.github+json"}
+    pat = (os.environ.get("GITHUB_PAT") or "").strip()
+    if pat:
+        h["Authorization"] = "Bearer " + pat
+    return h
+
+
+def gh_api(method, path, obj=None):
+    return http_json(method, "https://api.github.com" + path, gh_headers(), obj, 60)
+
+
+def parse_issue_url(url):
+    m = re.match(r"https://github\.com/([^/]+)/([^/]+)/issues/(\d+)", url or "")
+    if not m:
+        return None
+    return m.group(1), m.group(2), int(m.group(3))
+
+
+def make_slug(url, title=""):
+    p = parse_issue_url(url)
+    if p:
+        raw = "%s-%s-%s" % p
+    else:
+        raw = re.sub(r"[^a-z0-9]+", "-", (title or "deal").lower()).strip("-")[:60] or "deal"
+    return re.sub(r"[^a-zA-Z0-9._-]+", "-", raw).strip("-")[:80]
+
+
+def fetch_issue_info(url):
+    """Lay thong tin issue tu GitHub API (co PAT thi dung PAT, khong thi an danh).
+    Tra dict {state, assignees, labels, comments, body, title} hoac None."""
+    p = parse_issue_url(url)
+    if not p:
+        return None
+    st, d = gh_api("GET", "/repos/%s/%s/issues/%d" % p)
+    if st != 200 or not isinstance(d, dict):
+        log("Khong doc duoc issue %s (HTTP %s)" % (url, st))
+        return None
+    return {
+        "state": d.get("state"),
+        "assignees": [a.get("login") for a in (d.get("assignees") or [])],
+        "labels": [l.get("name", "") for l in (d.get("labels") or [])],
+        "comments": d.get("comments", 0),
+        "body": (d.get("body") or "")[:6000],
+        "title": d.get("title") or "",
+    }
+
+
+def fetch_issue_comments(url):
+    p = parse_issue_url(url)
+    if not p:
+        return []
+    st, d = gh_api("GET", "/repos/%s/%s/issues/%d/comments?per_page=100" % p)
+    if st != 200 or not isinstance(d, list):
+        return []
+    return [{"user": (c.get("user") or {}).get("login", ""),
+             "association": c.get("author_association", ""),
+             "body": (c.get("body") or "")[:1500]} for c in d]
+
+
+# ---------------------------------------------------------------- Gemini pool
+def gemini_call_once(key, model, prompt):
+    url = ("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent" % model)
+    headers = {"Content-Type": "application/json"}
+    if str(key).startswith("AQ"):
+        url += "?key=" + urllib.parse.quote(key, safe="")
+    else:
+        headers["x-goog-api-key"] = key
+    st, d = http_json("POST", url, headers,
+                      {"contents": [{"parts": [{"text": prompt}]}]}, 300)
+    if st != 200:
+        detail = ""
+        if isinstance(d, dict):
+            detail = str((d.get("error") or {}).get("message") or "")[:160]
+        return "", st, detail
+    try:
+        parts = d["candidates"][0]["content"]["parts"]
+        return "".join(p.get("text", "") for p in parts), 200, ""
+    except Exception:
+        return "", 200, "response khong co text"
+
+
+def gemini_generate_pool(pool, pool_state, prompt):
+    """Xoay pool giong worker.js: 429 -> model ke cung key; 404 -> bo model cho
+    key do trong ca phien; 400/401/403 -> key chet trong ca phien."""
+    last_err = ""
+    for ki, key in enumerate(pool):
+        if ki in pool_state["dead"]:
+            continue
+        gone = pool_state["gone"].setdefault(ki, set())
+        for model in GEMINI_MODELS:
+            if model in gone:
+                continue
+            text, st, detail = gemini_call_once(key, model, prompt)
+            if text:
+                log("Gemini OK: key #%d model %s" % (ki + 1, model))
+                return text, "gemini (key #%d, %s)" % (ki + 1, model)
+            last_err = "key #%d %s HTTP %s %s" % (ki + 1, model, st, detail)
+            log("Gemini " + last_err)
+            if st in (400, 401, 403):
+                pool_state["dead"].add(ki)
+                log("Gemini key #%d chet (HTTP %s) -> bo trong phien nay" % (ki + 1, st))
+                break
+            if st == 404:
+                gone.add(model)
+                continue
+            if st == 429:
+                continue
+    return "", "template (tat ca key Gemini deu fail: %s)" % last_err
+
+
+# ---------------------------------------------------------------- Phan loai
+def classify_type(title, text):
+    low = ((title or "") + " " + (text or "")).lower()
+    v = sum(1 for w in VIET_WORDS if w in low)
+    c = sum(1 for w in CODE_WORDS if w in low)
+    if v > c:
+        return "viet"
+    if c > 0:
+        return "code"
+    return "khac"
+
+
+def classify_mode(title, text, info):
+    """Tra (mode, ly do). Mac dinh cho_duoc_chon cho an toan."""
+    low = ((title or "") + " " + (text or "")).lower()
+    for s in ASSIGN_SIGNALS:
+        if s in low:
+            return "cho_duoc_chon", "issue co dau hieu cho giao viec: '%s'" % s
+    for s in OPEN_SIGNALS:
+        if s in low:
+            return "lam_ngay", "issue ghi ro mo tu do: '%s'" % s
+    if info and (info.get("comments") or 0) >= 5:
+        return "cho_duoc_chon", "issue da co nhieu comment (%d) - nghi nhieu nguoi xin nhan" % info["comments"]
+    return "cho_duoc_chon", "khong ro dau hieu mo tu do -> mac dinh cho duoc chon (an toan)"
+
+
+# ---------------------------------------------------------------- Prompt + template
+def deal_context(deal, info):
+    body = (info or {}).get("body") or deal.get("pack") or ""
+    return ("Keo: %s\nLink: %s\nNgan sach: %s\n\nNoi dung issue / work pack:\n%s"
+            % (deal["title"], deal["url"],
+               ("$" + str(deal["budget_usd"])) if deal.get("budget_usd") else "CHUA GHI",
+               body[:5000]))
+
+
+def prompt_apply(deal, info):
+    p = ("Ban la PepperResearch, freelancer dang XIN NHAN 1 keo GitHub bounty. "
+         "Viet 1 comment tieng Anh ngan gon, chuyen nghiep, de dang len issue xin duoc giao viec:\n"
+         "- Gioi thieu 1 cau (ky nang lien quan dung loai keo nay).\n"
+         "- Ke hoach lam 3-5 buoc cu the theo noi dung issue.\n"
+         "- ETA uoc luong (ghi [X] ngay neu chua chac - khong bia so).\n"
+         "- Ket: nho chu issue assign / xac nhan cho bat dau.\n"
+         "Chi tra ve dung noi dung comment, khong giai thich them.\n\n"
+         + deal_context(deal, info))
+    if not deal.get("budget_usd"):
+        p += ("\n\nQUAN TRONG: keo CHUA ghi ngan sach - gop luon doan hoi tien nay vao cuoi comment "
+              "(nguyen van y): " + ASK_MONEY_EN)
+    return p
+
+
+def template_apply(deal):
+    lines = [
+        "Hi! I'm PepperResearch — I'd like to take on this issue.",
+        "",
+        "My plan: 1) study the task and the codebase/materials, 2) implement it in a "
+        "separate branch / draft, 3) test it locally against the requirements, "
+        "4) open a pull request / deliver the work referencing this issue.",
+        "ETA: [X] days. If the task is still open, please assign it to me or confirm "
+        "that I can proceed. Thank you!",
+    ]
+    if not deal.get("budget_usd"):
+        lines += ["", ASK_MONEY_EN]
+    return "\n".join(lines)
+
+
+def prompt_product(deal, info, typ):
+    ctx = deal_context(deal, info)
+    if typ == "viet":
+        return ("Ban la nguoi lam noi dung chuyen nghiep. Hay LAM THAT san pham cho keo viet "
+                "duoi day: bai viet/tai lieu HOAN CHINH dung yeu cau issue, dung ngon ngu cua "
+                "issue, cau truc ro rang, san sang nop. Neu la research: chi dung thong tin "
+                "trong issue/pack va kien thuc chac chan; so lieu/link chua chac thi ghi ro "
+                "'can kiem chung' - TUYET DOI khong bia so lieu hay link.\n\n" + ctx)
+    if typ == "khac":
+        return ("Hay LAM THAT san pham cho keo duoi day (tai lieu/ke hoach/ban thao dung "
+                "yeu cau issue, cau truc ro, san sang nop). Khong bia so lieu.\n\n" + ctx)
+    return ""
+
+
+def template_product(deal, typ):
+    return ("# San pham (khung template offline - chua co Gemini)\n\n"
+            "- Keo: %s\n- Link: %s\n- Loai: %s\n- Ngan sach: %s\n\n"
+            "## Yeu cau\n%s\n\n## Khung lam\n1. Doc ky issue. 2. Lam theo yeu cau. "
+            "3. Tu kiem tra. 4. Nop kem bang chung.\n"
+            % (deal["title"], deal["url"], typ,
+               ("$" + str(deal["budget_usd"])) if deal.get("budget_usd") else "CHUA GHI",
+               (deal.get("pack") or "")[:2500]))
+
+
+def prompt_solution(deal, info):
+    return ("Ban la ky su phan mem. Phan tich keo code duoi day va viet SOLUTION.md: "
+            "1) Tom tat yeu cau + tieu chi nghiem thu trich tu issue; 2) Cach tiep can ky "
+            "thuat tung buoc; 3) File/duong dan du kien sua (theo cau truc repo neu thay "
+            "trong issue, chua chac thi ghi ro la du kien); 4) Ke hoach tu test. "
+            "Khong bia chi tiet khong co trong issue.\n\n" + deal_context(deal, info))
+
+
+def prompt_code(deal, info):
+    return ("Ban la ky su phan mem. Dua tren keo code duoi day, viet code NHAP san sang "
+            "dan vao repo. Dinh dang bat buoc cho MOI file:\n"
+            "=== FILE: duong/dan/file.ext ===\n<toan bo noi dung file>\n=== END FILE ===\n"
+            "Chi tra ve cac khoi file, toi da 4 file quan trong nhat, khong giai thich ngoai khoi.\n\n"
+            + deal_context(deal, info))
+
+
+def parse_code_files(text):
+    files = []
+    pat = re.compile(r"=== FILE: (.+?) ===\s*\n(.*?)\n=== END FILE ===", re.S)
+    for m in pat.finditer(text or ""):
+        path = m.group(1).strip().replace("\\", "/")
+        if path.startswith("/") or ".." in path.split("/"):
+            continue
+        files.append((path, m.group(2)))
+    return files
+
+
+# ---------------------------------------------------------------- File helpers
+def deal_dir(slug):
+    d = os.path.join(DELIV_DIR, slug)
+    os.makedirs(d, exist_ok=True)
+    return d
+
+
+def write_file(path, content):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+    return os.path.relpath(path, BASE_DIR)
+
+
+def load_state():
+    try:
+        with open(STATE_PATH, encoding="utf-8") as f:
+            d = json.load(f)
+            return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_state(state):
+    os.makedirs(os.path.dirname(STATE_PATH), exist_ok=True)
+    with open(STATE_PATH, "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False, indent=1)
+
+
+# ---------------------------------------------------------------- Hanh dong chinh
+def make_apply(entry, pool, pool_state, info):
+    """Sinh APPLY.md (don xin nhan viec). Co PAT thi gui comment that ngay."""
+    deal = {"title": entry["title"], "url": entry["url"], "budget_usd": entry.get("budget_usd"),
+            "pack": entry.get("pack", "")}
+    if pool:
+        text, mode = gemini_generate_pool(pool, pool_state, prompt_apply(deal, info))
+        if not text:
+            text = template_apply(deal)
+    else:
+        text, mode = template_apply(deal), "template (chua co Gemini key)"
+    comment_body = text.strip()
+    doc = (NOTE_DRAFT
+           + "# Don xin nhan viec (APPLY) - %s\n\n- Keo: %s\n- Link: %s\n- Mode: cho_duoc_chon\n"
+             "- Nguon soan: %s\n- Trang thai gui: %s\n\n## Noi dung comment se gui\n\n%s\n"
+           % (entry["title"], entry["title"], entry["url"], mode,
+              "se gui bang GITHUB_PAT ngay sau khi luu" if os.environ.get("GITHUB_PAT") else "CHO PAT - chua gui",
+              comment_body))
+    rel = write_file(os.path.join(deal_dir(entry["slug"]), "APPLY.md"), doc)
+    entry.setdefault("files", []).append(rel)
+    entry["apply_mode"] = mode
+    entry["status"] = "applied"
+    entry["applied_at"] = now_iso()
+    entry["apply_sent"] = False
+    if (os.environ.get("GITHUB_PAT") or "").strip():
+        p = parse_issue_url(entry["url"])
+        if p:
+            st, d = gh_api("POST", "/repos/%s/%s/issues/%d/comments" % p, {"body": comment_body})
+            if st in (200, 201):
+                entry["apply_sent"] = True
+                entry["apply_comment_url"] = (d or {}).get("html_url", "")
+                log("Da GUI don xin viec: %s" % entry["url"])
+            else:
+                log("Gui don loi HTTP %s cho %s - don van nam o APPLY.md" % (st, entry["url"]))
+    telegram_send("[Pepper Hunter Doer] %s DON XIN VIEC\n%s\nLink: %s\nMode: cho duoc chon - %s"
+                  % ("DA GUI" if entry["apply_sent"] else "DA SOAN (CHO PAT DE GUI)",
+                     entry["title"], entry["url"],
+                     "da gui comment xin nhan viec" if entry["apply_sent"]
+                     else "don o APPLY.md, co PAT la gui ngay"))
+    return entry
+
+
+def make_product(entry, pool, pool_state, info):
+    """Lam SAN PHAM that cho keo (chi goi khi lam_ngay hoac da assigned)."""
+    deal = {"title": entry["title"], "url": entry["url"], "budget_usd": entry.get("budget_usd"),
+            "pack": entry.get("pack", "")}
+    typ = entry["type"]
+    d = deal_dir(entry["slug"])
+    made = []
+    if typ == "code":
+        if pool:
+            sol, m1 = gemini_generate_pool(pool, pool_state, prompt_solution(deal, info))
+            code_text, m2 = gemini_generate_pool(pool, pool_state, prompt_code(deal, info))
+            if not sol:
+                sol = template_product(deal, typ)
+            modes = m1 + " | " + m2
+        else:
+            sol, code_text, modes = template_product(deal, typ), "", "template (chua co Gemini key)"
+        made.append(write_file(os.path.join(d, "SOLUTION.md"), NOTE_DRAFT + sol + "\n"))
+        files = parse_code_files(code_text)
+        if files:
+            for path, content in files[:4]:
+                made.append(write_file(os.path.join(d, path), content + "\n"))
+        elif code_text:
+            made.append(write_file(os.path.join(d, "code-draft.md"), NOTE_DRAFT + code_text + "\n"))
+        entry["product_mode"] = modes
+    else:
+        if pool:
+            text, m = gemini_generate_pool(pool, pool_state, prompt_product(deal, info, typ))
+            if not text:
+                text = template_product(deal, typ)
+        else:
+            text, m = template_product(deal, typ), "template (chua co Gemini key)"
+        made.append(write_file(os.path.join(d, "SAN-PHAM.md"), NOTE_DRAFT + text + "\n"))
+        entry["product_mode"] = m
+    entry.setdefault("files", []).extend(made)
+    entry["files"] = sorted(set(entry["files"]))
+    entry["status"] = "working"
+    entry["product_at"] = now_iso()
+    log("Da lam san pham (%s): %s -> %s" % (typ, entry["title"][:60], ", ".join(made)))
+    return entry
+
+
+def check_assignment(entry):
+    """Kiem tra don dang cho: duoc giao chua? Tra 'assigned'|'lost'|'het_han'|None."""
+    info = fetch_issue_info(entry["url"])
+    if not info:
+        return None
+    if OUR_USERNAME in (info.get("assignees") or []):
+        return "assigned"
+    labels = [l.lower() for l in (info.get("labels") or [])]
+    if "assigned" in labels or "in-progress" in labels or "in progress" in labels:
+        return "assigned"
+    comments = fetch_issue_comments(entry["url"])
+    for c in comments:
+        body = (c.get("body") or "").lower()
+        if OUR_USERNAME.lower() in body and any(w in body for w in ASSIGN_CONFIRM_WORDS):
+            return "assigned"
+        if (c.get("association") in ("OWNER", "MEMBER", "COLLABORATOR")
+                and "assign" in body and OUR_USERNAME.lower() in body):
+            return "assigned"
+    if info.get("state") == "closed":
+        return "lost"
+    others = [a for a in (info.get("assignees") or []) if a != OUR_USERNAME]
+    if others:
+        return "lost"
+    try:
+        applied = datetime.fromisoformat(entry.get("applied_at", "").replace("Z", "+00:00"))
+        if (datetime.now(timezone.utc) - applied).days >= APPLIED_EXPIRE_DAYS:
+            return "het_han"
+    except Exception:
+        pass
+    return None
+
+
+def submit_github(entry):
+    """Nop bai kenh GitHub bang PAT: fork -> branch -> commit file san pham -> PR.
+    Tra True neu da mo duoc PR. Chi chay khi co GITHUB_PAT."""
+    p = parse_issue_url(entry["url"])
+    if not p:
+        return False
+    owner, repo, number = p
+    st, me = gh_api("GET", "/user")
+    if st != 200:
+        log("PAT khong doc duoc /user (HTTP %s) - chua nop duoc" % st)
+        return False
+    me_login = me.get("login")
+    st, fork = gh_api("POST", "/repos/%s/%s/forks" % (owner, repo), {})
+    if st not in (200, 201, 202):
+        log("Fork loi HTTP %s cho %s/%s" % (st, owner, repo))
+        return False
+    base_sha = None
+    default_branch = None
+    for _ in range(10):
+        st, fr = gh_api("GET", "/repos/%s/%s" % (me_login, repo))
+        if st == 200:
+            default_branch = fr.get("default_branch") or "main"
+            st2, ref = gh_api("GET", "/repos/%s/%s/git/ref/heads/%s" % (me_login, repo, default_branch))
+            if st2 == 200:
+                base_sha = ((ref.get("object") or {}).get("sha"))
+                if base_sha:
+                    break
+        time.sleep(6)
+    if not base_sha:
+        log("Fork chua san sang (khong lay duoc sha nhanh mac dinh) - de vong sau nop")
+        return False
+    branch = entry.get("submit_branch") or ("pepper-hunter/issue-%d" % number)
+    gh_api("POST", "/repos/%s/%s/git/refs" % (me_login, repo),
+           {"ref": "refs/heads/" + branch, "sha": base_sha})
+    uploaded = []
+    for rel in entry.get("files", []):
+        name = os.path.basename(rel)
+        if name in ("APPLY.md",):
+            continue
+        full = os.path.join(BASE_DIR, rel)
+        if not os.path.isfile(full):
+            continue
+        with open(full, "rb") as f:
+            import base64
+            content_b64 = base64.b64encode(f.read()).decode()
+        target = "pepper-hunter-deliverable/" + name
+        st, _d = gh_api("PUT", "/repos/%s/%s/contents/%s" % (me_login, repo, target),
+                        {"message": "Pepper Hunter: deliverable for #%d" % number,
+                         "content": content_b64, "branch": branch})
+        if st in (200, 201):
+            uploaded.append(target)
+    if not uploaded:
+        log("Khong upload duoc file nao len fork - chua nop")
+        return False
+    body = ("Deliverable prepared by PepperResearch (Pepper Hunter Doer) for #%d.\n\n"
+            "Files under `pepper-hunter-deliverable/`: %s\n\n%s"
+            % (number, ", ".join(uploaded),
+               "This is a draft PR for review." if PR_DRAFT else "Ready for review."))
+    st, pr = gh_api("POST", "/repos/%s/%s/pulls" % (owner, repo),
+                    {"title": "[Pepper Hunter] %s" % entry["title"][:90],
+                     "head": "%s:%s" % (me_login, branch), "base": default_branch,
+                     "body": body, "draft": PR_DRAFT})
+    if st in (200, 201):
+        entry["pr_url"] = pr.get("html_url", "")
+        entry["pr_number"] = pr.get("number")
+        entry["submit_branch"] = branch
+        entry["status"] = "submitted"
+        entry["submitted_at"] = now_iso()
+        telegram_send("[Pepper Hunter Doer] DA NOP BAI\n%s\nPR: %s" % (entry["title"], entry["pr_url"]))
+        log("Da nop PR: %s" % entry["pr_url"])
+        return True
+    log("Mo PR loi HTTP %s cho %s" % (st, entry["url"]))
+    return False
+
+
+def check_submitted(entry):
+    """submitted -> cho_tra khi PR merged hoac chu xac nhan xong."""
+    p = parse_issue_url(entry["url"])
+    if not p or not entry.get("pr_number"):
+        return False
+    st, pr = gh_api("GET", "/repos/%s/%s/pulls/%d" % (p[0], p[1], entry["pr_number"]))
+    if st == 200 and pr.get("merged"):
+        entry["status"] = "cho_tra"
+        entry["merged_at"] = now_iso()
+        log("PR merged -> CHO TRA: %s" % entry["title"][:60])
+        return True
+    return False
+
+
+# ---------------------------------------------------------------- STATUS + git
+def write_status(state, latest_ts):
+    counts = {}
+    for e in state.values():
+        counts[e.get("status", "?")] = counts.get(e.get("status", "?"), 0) + 1
+    vn = datetime.now(timezone.utc) + timedelta(hours=7)
+    lines = ["# Pepper Hunter Doer - STATUS",
+             "",
+             "Cap nhat: %s (VN) / %s (UTC)" % (vn.strftime("%Y-%m-%d %H:%M:%S"),
+                                               datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")),
+             "Worker /latest ts: %s" % (latest_ts or "chua co"),
+             "Tong keo da theo doi: %d" % len(state),
+             "Trang thai: " + (", ".join("%s=%d" % kv for kv in sorted(counts.items())) or "chua co keo"),
+             ""]
+    order = [("applied", "Dang cho duoc chon (da nop don)"),
+             ("assigned", "Da duoc chon - chuan bi lam"),
+             ("working", "Dang lam / san pham da xong, cho nop"),
+             ("submitted", "Da nop - cho duyet/merge"),
+             ("cho_tra", "Cho tra (da xong, cho tien ve)"),
+             ("da_tra", "Da tra (co bang chung)"),
+             ("lost", "Thua / da co nguoi nhan / issue dong"),
+             ("het_han", "Het han cho"),
+             ("new", "Moi dang ky")]
+    for status, label in order:
+        rows = [e for e in state.values() if e.get("status") == status]
+        if not rows:
+            continue
+        lines += ["## %s (%d)" % (label, len(rows)), ""]
+        for e in sorted(rows, key=lambda x: x.get("updated_at", ""), reverse=True):
+            budget = ("$" + str(e["budget_usd"])) if e.get("budget_usd") else "chua ghi ngan sach"
+            extra = ""
+            if e.get("pr_url"):
+                extra = " - PR: " + e["pr_url"]
+            elif status == "applied":
+                extra = " - don: " + ("da gui" if e.get("apply_sent") else "da soan, CHO PAT de gui")
+            lines.append("- [%s](%s) - %s/%s - %s%s"
+                         % (e["title"][:90], e["url"], e.get("mode", "?"), e.get("type", "?"),
+                            budget, extra))
+        lines.append("")
+    with open(STATUS_PATH, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+
+
+def git_commit_push(msg):
+    if not DOER_GIT:
+        return
+    def run(args):
+        return subprocess.run(args, cwd=BASE_DIR, capture_output=True, text=True, timeout=120)
+    try:
+        run(["git", "add", "state/doer_state.json", "STATUS.md", "deliverables"])
+        st = run(["git", "status", "--porcelain"])
+        if not (st.stdout or "").strip():
+            return
+        run(["git", "-c", "user.name=Pepper Hunter Doer", "-c", "user.email=doer@pepperresearch",
+             "commit", "-m", msg])
+        r = run(["git", "push"])
+        if r.returncode != 0:
+            log("git push loi: %s" % (r.stderr or "")[:200])
+        else:
+            log("Da commit+push: %s" % msg)
+    except Exception as e:
+        log("git loi: %s" % e)
+
+
+def self_dispatch():
+    if not DOER_DISPATCH:
+        return
+    token = (os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or "").strip()
+    if not token:
+        log("Khong co GH_TOKEN/GITHUB_TOKEN - khong tu dispatch duoc run moi")
+        return
+    env = dict(os.environ)
+    env["GH_TOKEN"] = token
+    try:
+        r = subprocess.run(["gh", "workflow", "run", "doer.yml", "--ref", "main"],
+                           cwd=BASE_DIR, capture_output=True, text=True, timeout=120, env=env)
+        log("Tu dispatch run moi: rc=%d %s" % (r.returncode, (r.stdout + r.stderr)[:200]))
+    except Exception as e:
+        log("Dispatch loi: %s" % e)
+
+
+# ---------------------------------------------------------------- Vong lap
+def process_cycle(state, pool, pool_state):
+    st, latest = http_json("GET", WORKER_URL + "/latest", timeout=40)
+    if st != 200 or not isinstance(latest, dict):
+        log("Doc /latest loi (HTTP %s) - bo qua vong nay" % st)
+        return None
+    deals = latest.get("deals") or []
+    log("Vong moi: /latest ts=%s, %d keo sach moi trong bao cao" % (latest.get("ts"), len(deals)))
+
+    for deal in deals:
+        url = deal.get("url")
+        if not url or url in state:
+            continue
+        info = fetch_issue_info(url)
+        slug = make_slug(url, deal.get("title", ""))
+        entry = {"title": deal.get("title", ""), "url": url, "slug": slug,
+                 "budget_usd": deal.get("budget_usd"), "pack": (deal.get("pack") or "")[:6000],
+                 "status": "new", "created_at": now_iso(), "updated_at": now_iso(), "files": []}
+        if info and info.get("state") == "closed":
+            entry["status"] = "lost"
+            entry["note"] = "issue da dong truoc khi kip lam"
+        elif info and (info.get("assignees") or []):
+            if OUR_USERNAME in info["assignees"]:
+                entry["mode"] = "cho_duoc_chon"
+                entry["type"] = classify_type(entry["title"], entry["pack"])
+                entry["status"] = "assigned"
+                entry["note"] = "da duoc assign san cho " + OUR_USERNAME
+            else:
+                entry["status"] = "lost"
+                entry["note"] = "da co nguoi nhan: " + ", ".join(info["assignees"])
+        else:
+            entry["type"] = classify_type(entry["title"], entry["pack"])
+            entry["mode"], entry["mode_reason"] = classify_mode(entry["title"], entry["pack"], info)
+        state[url] = entry
+        if entry["status"] in ("new", "assigned"):
+            telegram_send("[Pepper Hunter Doer] KEO MOI\n%s\nLink: %s\nNgan sach: %s\nMode: %s - loai: %s"
+                          % (entry["title"], url,
+                             ("$" + str(entry["budget_usd"])) if entry.get("budget_usd") else "chua ghi",
+                             entry.get("mode", "?"), entry.get("type", "?")))
+
+    for url, entry in list(state.items()):
+        status = entry.get("status")
+        try:
+            if status == "new" and entry.get("mode") == "cho_duoc_chon":
+                make_apply(entry, pool, pool_state, fetch_issue_info(url))
+            elif status == "new" and entry.get("mode") == "lam_ngay":
+                make_product(entry, pool, pool_state, fetch_issue_info(url))
+            elif status == "applied":
+                verdict = check_assignment(entry)
+                if verdict == "assigned":
+                    entry["status"] = "assigned"
+                    entry["assigned_at"] = now_iso()
+                    telegram_send("[Pepper Hunter Doer] DUOC CHON!\n%s\nLink: %s\nBat dau lam san pham ngay."
+                                  % (entry["title"], url))
+                    make_product(entry, pool, pool_state, fetch_issue_info(url))
+                elif verdict in ("lost", "het_han"):
+                    entry["status"] = verdict
+                    entry["note"] = "don cho ket thuc: " + verdict
+            elif status == "assigned":
+                make_product(entry, pool, pool_state, fetch_issue_info(url))
+            elif status == "working":
+                if (os.environ.get("GITHUB_PAT") or "").strip():
+                    submit_github(entry)
+                else:
+                    entry["note"] = "san pham da xong - CHO PAT de nop PR"
+            elif status == "submitted":
+                check_submitted(entry)
+            elif status == "da_tra" and not entry.get("paid_notified"):
+                telegram_send("[Pepper Hunter Doer] TIEN VE!\n%s\nLink: %s" % (entry["title"], url))
+                entry["paid_notified"] = True
+        except Exception as e:
+            log("Loi xu ly keo %s: %s" % (url, e))
+        entry["updated_at"] = now_iso()
+
+    save_state(state)
+    write_status(state, latest.get("ts"))
+    git_commit_push("doer: vong %s - %d keo dang theo doi"
+                    % (datetime.now(timezone.utc).strftime("%H:%M"), len(state)))
+    return latest.get("ts")
+
+
+def main():
+    pool = parse_key_pool()
+    missing = []
+    if not pool:
+        missing.append("GEMINI_API_KEYS (dung template offline cho don/san pham)")
+    if not (os.environ.get("TELEGRAM_BOT_TOKEN") and os.environ.get("TELEGRAM_CHAT_ID")):
+        missing.append("TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID (khong bao Telegram)")
+    if not (os.environ.get("GITHUB_PAT") or "").strip():
+        missing.append("GITHUB_PAT (don chi soan san, khong gui comment/khong mo PR)")
+    for m in missing:
+        log("chua cau hinh: " + m)
+    log("Doer bat dau: pool %d key, budget %.0f phut, poll %ds, once=%s, git=%s, dispatch=%s"
+        % (len(pool), LOOP_BUDGET_MIN, POLL_SEC, DOER_ONCE, DOER_GIT, DOER_DISPATCH))
+    state = load_state()
+    pool_state = {"dead": set(), "gone": {}}
+    start = time.monotonic()
+    budget_sec = LOOP_BUDGET_MIN * 60
+    while True:
+        process_cycle(state, pool, pool_state)
+        if DOER_ONCE:
+            log("DOER_ONCE=1 - thoat sau 1 vong")
+            return 0
+        elapsed = time.monotonic() - start
+        remaining = budget_sec - elapsed
+        if remaining <= 150:
+            log("Sap het gio job (con %.0fs) - tu dispatch run moi roi thoat" % remaining)
+            self_dispatch()
+            return 0
+        time.sleep(min(POLL_SEC, max(10, remaining - 120)))
+
+
+if __name__ == "__main__":
+    sys.exit(main())
