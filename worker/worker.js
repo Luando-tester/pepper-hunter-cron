@@ -83,6 +83,15 @@ function isSiteCredit(text) {
   return (text || "").toLowerCase().includes("site credit");
 }
 
+// Cong chan REPO BAY BOT (dong bo doer.py + hunter.py): owner/ten repo chua
+// "trap"/"honeypot"/"benchmark" = bay du bot san bounty -> bo qua han,
+// khong vao queue, khong bao Telegram.
+const TRAP_MARKERS = ["trap", "honeypot", "benchmark"];
+function isTrapRepo(repo) {
+  const low = (repo || "").toLowerCase();
+  return TRAP_MARKERS.some((m) => low.includes(m));
+}
+
 async function fetchBounties(report) {
   const items = [];
   const seenUrl = new Set();
@@ -104,6 +113,10 @@ async function fetchBounties(report) {
         const ru = it.repository_url || "";
         if (ru.includes("/repos/")) repo = ru.split("/repos/")[1];
         if ((perRepo[repo] || 0) >= MAX_PER_REPO) continue;
+        if (isTrapRepo(repo)) {
+          log("BO QUA repo bay bot (" + repo + "): " + title.slice(0, 70));
+          continue;
+        }
         perRepo[repo] = (perRepo[repo] || 0) + 1;
         seenUrl.add(html);
         const b = extractBudget(title);

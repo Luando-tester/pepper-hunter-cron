@@ -116,6 +116,16 @@ def is_site_credit(text):
     return "site credit" in (text or "").lower()
 
 
+# Cong chan REPO BAY BOT (dong bo doer.py + worker.js): owner/ten repo chua
+# "trap"/"honeypot"/"benchmark" = bay du bot san bounty -> bo qua han.
+TRAP_MARKERS = ["trap", "honeypot", "benchmark"]
+
+
+def is_trap_repo(repo):
+    low = (repo or "").lower()
+    return any(m in low for m in TRAP_MARKERS)
+
+
 def fetch_bounties():
     """Keo keo THAT tu GitHub Search API. Tra (items, errors)."""
     items, errors, seen_url = [], [], set()
@@ -143,6 +153,9 @@ def fetch_bounties():
             if "/repos/" in ru:
                 repo = ru.split("/repos/", 1)[1]
             if per_repo.get(repo, 0) >= MAX_PER_REPO:
+                continue
+            if is_trap_repo(repo):
+                log("BO QUA repo bay bot (%s): %s" % (repo, title[:70]))
                 continue
             per_repo[repo] = per_repo.get(repo, 0) + 1
             seen_url.add(html)

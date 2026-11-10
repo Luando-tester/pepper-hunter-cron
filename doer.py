@@ -15,6 +15,15 @@ LY"; bat dau sinh don/san pham -> "BAT DAU XU LY" (moi su kien 1 lan, co co
 trong state). STATUS.md co dong heartbeat va duoc commit lai toi thieu moi
 ~15 phut (DOER_HEARTBEAT_SEC) ke ca khi khong co thay doi.
 
+NANG CAP 19:58 10/11: (a) CONG BAY BOT - repo owner/ten chua "trap"/
+"honeypot"/"benchmark" thi khong dang ky, keo da co -> skipped_trap;
+(b) xu ly TRON VONG moi keo: don cua keo chua ghi ngan sach luon co doan
+hoi tien (ke ca APPLY.md soan tu truoc - ensure_apply_file_money), than
+comment gui di duoc sanitize het placeholder [X] (ETA mac dinh 3 ngay);
+(c) MUOT: loi 403-do-token gan co awaiting_token theo van tay PAT (chi gui
+lai khi token thay), loi tam thoi backoff toi da 30 phut; loi tung keo/tung
+diem nap duoc cach ly + dem vao STATUS, loi toan vong khong giet job.
+
 MAY TRANG THAI (luan chot 18:01 10/11 - nhieu keo phai THANG/DUOC CHON truoc):
   mode=lam_ngay      : mo tu do -> lam san pham ngay (working) -> nop (submitted)
   mode=cho_duoc_chon : phai duoc giao viec truoc:
@@ -41,7 +50,7 @@ Bien moi truong:
   APPLIED_EXPIRE_DAYS=30  don cho qua so ngay nay -> het_han
 Chi dung thu vien chuan. Loi tung nguon chi log, khong giet vong lap.
 """
-import json, os, re, subprocess, sys, time, urllib.request, urllib.error, urllib.parse
+import hashlib, json, os, re, subprocess, sys, time, urllib.request, urllib.error, urllib.parse
 from datetime import datetime, timezone, timedelta
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -57,6 +66,7 @@ LOOP_BUDGET_MIN = float(os.environ.get("DOER_LOOP_BUDGET_MIN") or 330)
 POLL_SEC = int(os.environ.get("DOER_POLL_SEC") or 60)
 APPLIED_EXPIRE_DAYS = int(os.environ.get("APPLIED_EXPIRE_DAYS") or 30)
 HEARTBEAT_SEC = int(os.environ.get("DOER_HEARTBEAT_SEC") or 900)
+RESEND_BACKOFF_SEC = int(os.environ.get("DOER_RESEND_BACKOFF_SEC") or 1800)
 
 # --- Intake 2: doer TU QUET GitHub Search (cung bo truy van + cong sach voi
 # hunter.py / worker.js). Day la duong bat lai keo da troi khoi /latest
@@ -77,6 +87,28 @@ BANNED = [
     "generate gmv", "qualifying gmv", "fake volume", "wash trading", "wash trade",
     "simulated volume", "bot traffic", "fake traffic",
 ]
+
+# --- Cong chan REPO BAY BOT (chot 19:58 10/11): repo co owner/ten chua cac dau
+# hieu nay la bay du bot san bounty tu dong (vd PhanKhoa95/oss-bot-trap-benchmark
+# chua 2 "keo" $1.500/$1.600 khong tien that) -> KHONG dang ky moi, keo da co
+# trong state chuyen skipped_trap, khong bao gio gui don. Ap dung nhat quan o
+# doer.py + hunter.py + worker/worker.js.
+TRAP_MARKERS = ["trap", "honeypot", "benchmark"]
+
+
+def trap_repo_reason(url):
+    """Tra ly do bay neu URL issue thuoc repo bay bot, None neu sach.
+    Chi nhin owner/repo trong URL - khong dung title/body (tranh bat nham)."""
+    p = parse_issue_url(url)
+    if not p:
+        return None
+    owner, repo = p[0], p[1]
+    low = (owner + "/" + repo).lower()
+    for m in TRAP_MARKERS:
+        if m in low:
+            return ("repo %s/%s chua dau hieu bay bot ('%s') - bo qua, khong dang ky, "
+                    "khong gui don" % (owner, repo, m))
+    return None
 
 IN_ACTIONS = os.environ.get("GITHUB_ACTIONS") == "true"
 DOER_ONCE = os.environ.get("DOER_ONCE") == "1"
@@ -181,6 +213,16 @@ def telegram_send(text):
     if not ok:
         log("Telegram loi (HTTP %s): %s" % (st, raw[:160]))
     return ok
+
+
+def pat_fingerprint():
+    """Van tay rut gon cua GITHUB_PAT hien tai (sha256, 12 ky tu hex dau) -
+    chi de PHAT HIEN token da duoc thay (fine-grained -> classic) ma khong
+    luu gia tri token. Rong neu chua co PAT."""
+    pat = (os.environ.get("GITHUB_PAT") or "").strip()
+    if not pat:
+        return ""
+    return hashlib.sha256(pat.encode()).hexdigest()[:12]
 
 
 def gh_headers():
@@ -302,6 +344,9 @@ def fetch_bounty_candidates():
                 repo = ru.split("/repos/", 1)[1]
             if per_repo.get(repo, 0) >= MAX_PER_REPO:
                 continue
+            if trap_repo_reason(html):
+                log("Intake2 BO QUA repo bay bot (%s): %s" % (repo, title[:70]))
+                continue
             excerpt = re.sub(r"\s+", " ", it.get("body") or "")[:600]
             text = title + " " + excerpt
             hits = clean_gate(text)
@@ -333,6 +378,10 @@ def register_deal(state, deal):
     dang ky moi, None neu da co. Gui Telegram su kien NHAN KEO ngay khi nhan."""
     url = deal.get("url")
     if not url or url in state:
+        return None
+    trap = trap_repo_reason(url)
+    if trap:
+        log("Khong dang ky keo thuoc repo bay: %s (%s)" % (url, trap))
         return None
     info = fetch_issue_info(url)
     slug = make_slug(url, deal.get("title", ""))
@@ -456,7 +505,8 @@ def prompt_apply(deal, info):
          "Viet 1 comment tieng Anh ngan gon, chuyen nghiep, de dang len issue xin duoc giao viec:\n"
          "- Gioi thieu 1 cau (ky nang lien quan dung loai keo nay).\n"
          "- Ke hoach lam 3-5 buoc cu the theo noi dung issue.\n"
-         "- ETA uoc luong (ghi [X] ngay neu chua chac - khong bia so).\n"
+         "- ETA uoc luong: ghi SO NGAY cu the (mac dinh 3 ngay neu chua chac) - "
+         "TUYET DOI khong de placeholder dang [X].\n"
          "- Ket: nho chu issue assign / xac nhan cho bat dau.\n"
          "Chi tra ve dung noi dung comment, khong giai thich them.\n\n"
          + deal_context(deal, info))
@@ -466,6 +516,28 @@ def prompt_apply(deal, info):
     return p
 
 
+def sanitize_comment_body(text):
+    """Than comment GUI DI khong duoc con placeholder dang [X]/[...] (don mau
+    cu tung de 'ETA: [X] days'). Thay bang gia tri mac dinh hop ly: [X] days
+    -> 3 days, [X] -> 3. Khong dong vao link markdown [text](url) vi mau chi
+    bat dung chu X trong ngoac vuong."""
+    t = text or ""
+    t = re.sub(r"\[\s*X\s*\]\s*days?", "3 days", t, flags=re.I)
+    t = re.sub(r"\[\s*X\s*\]", "3", t, flags=re.I)
+    return t
+
+
+def ensure_ask_money(text, deal):
+    """Bao dam don cua keo CHUA ghi ngan sach LUON co doan hoi tien bat buoc:
+    Gemini co the quen chen -> code tu noi them ASK_MONEY_EN (khong sua don
+    da co san doan hoi: nhan dien bang cum 'exact bounty amount')."""
+    if deal.get("budget_usd"):
+        return text
+    if "exact bounty amount" in (text or ""):
+        return text
+    return (text or "").rstrip() + "\n\n" + ASK_MONEY_EN
+
+
 def template_apply(deal):
     lines = [
         "Hi! I'm PepperResearch — I'd like to take on this issue.",
@@ -473,8 +545,8 @@ def template_apply(deal):
         "My plan: 1) study the task and the codebase/materials, 2) implement it in a "
         "separate branch / draft, 3) test it locally against the requirements, "
         "4) open a pull request / deliver the work referencing this issue.",
-        "ETA: [X] days. If the task is still open, please assign it to me or confirm "
-        "that I can proceed. Thank you!",
+        "My ETA is 3 days from assignment. If the task is still open, please assign "
+        "it to me or confirm that I can proceed. Thank you!",
     ]
     if not deal.get("budget_usd"):
         lines += ["", ASK_MONEY_EN]
@@ -573,7 +645,7 @@ def make_apply(entry, pool, pool_state, info):
             text = template_apply(deal)
     else:
         text, mode = template_apply(deal), "template (chua co Gemini key)"
-    comment_body = text.strip()
+    comment_body = sanitize_comment_body(ensure_ask_money(text.strip(), deal))
     doc = (NOTE_DRAFT
            + "# Don xin nhan viec (APPLY) - %s\n\n- Keo: %s\n- Link: %s\n- Mode: cho_duoc_chon\n"
              "- Nguon soan: %s\n- Trang thai gui: %s\n\n## Noi dung comment se gui\n\n%s\n"
@@ -599,6 +671,10 @@ def make_apply(entry, pool, pool_state, info):
                 if st == 403:
                     entry["apply_blocked"] = ("PAT fine-grained khong comment duoc repo nguoi khac "
                                                "(HTTP 403) - can classic PAT scope public_repo")
+                    # Co cho-token rieng: chu ky khac van chay binh thuong; chi
+                    # thu gui lai khi van tay PAT thay doi (da thay token moi).
+                    entry["awaiting_token"] = True
+                    entry["blocked_pat_fp"] = pat_fingerprint()
     telegram_send("[Pepper Hunter Doer] %s DON XIN VIEC\n%s\nLink: %s\nMode: cho duoc chon - %s"
                   % ("DA GUI" if entry["apply_sent"] else "DA SOAN (CHO PAT DE GUI)",
                      entry["title"], entry["url"],
@@ -631,6 +707,17 @@ def make_product(entry, pool, pool_state, info):
                 made.append(write_file(os.path.join(d, path), content + "\n"))
         elif code_text:
             made.append(write_file(os.path.join(d, "code-draft.md"), NOTE_DRAFT + code_text + "\n"))
+        else:
+            # Gemini khong sinh duoc code nhap (het pool/loi): van phai co san
+            # pham khung ro nhan de keo khong chet dung - SOLUTION.md o tren da
+            # la ban template, them code-draft.md ghi ro tinh trang + khung lam.
+            made.append(write_file(os.path.join(d, "code-draft.md"),
+                                   NOTE_DRAFT
+                                   + "# Code nhap - CHUA SINH DUOC (Gemini loi/het pool)\n\n"
+                                   + "Trang thai: khung cho san - se sinh lai code nhap o vong sau "
+                                     "khi Gemini phuc hoi, hoac lam tay theo SOLUTION.md.\n\n"
+                                   + template_product(deal, typ) + "\n"))
+            entry["product_incomplete"] = "code draft chua sinh duoc - cho Gemini phuc hoi"
         entry["product_mode"] = modes
     else:
         if pool:
@@ -649,22 +736,64 @@ def make_product(entry, pool, pool_state, info):
     return entry
 
 
+def ensure_apply_file_money(entry):
+    """Keo applied CHUA ghi ngan sach ma APPLY.md (soan tu cac lan chay truoc)
+    thieu doan hoi tien bat buoc -> noi ASK_MONEY_EN vao cuoi than comment
+    trong file (than comment nam o section cuoi cua APPLY.md). Chay moi vong
+    cho den khi don duoc gui; da co doan hoi thi khong lam gi."""
+    if entry.get("budget_usd") or entry.get("apply_sent"):
+        return
+    rel = None
+    for f in entry.get("files", []):
+        if f.endswith("APPLY.md"):
+            rel = f
+            break
+    if not rel:
+        return
+    full = os.path.join(BASE_DIR, rel)
+    if not os.path.isfile(full):
+        return
+    with open(full, encoding="utf-8") as fh:
+        doc = fh.read()
+    if "exact bounty amount" in doc:
+        return
+    with open(full, "w", encoding="utf-8") as fh:
+        fh.write(doc.rstrip() + "\n\n" + ASK_MONEY_EN + "\n")
+    entry["apply_money_ensured"] = True
+    log("Da bo sung doan hoi tien vao APPLY.md cua %s" % entry["url"])
+
+
 def resend_apply(entry):
     """Gui LAI don cho entry 'applied' ma don chua gui duoc (lan chay truoc bi
     hong kenh: secret Telegram/PAT rong gia tri). Than comment lay tu APPLY.md.
-    403 (PAT fine-grained khong viet duoc repo nguoi khac) -> danh dau blocked,
-    khong thu lai lien tuc; loi khac thu lai sau 6 gio."""
+    Loi 403-do-token -> co rieng awaiting_token: KHONG thu lai bang token cu
+    (vo ich), chi thu lai ngay khi van tay PAT thay doi (Luan da thay classic
+    PAT) - chu ky xu ly cac viec khac khong bi anh huong. Loi tam thoi khac:
+    thu lai sau toi da 30 phut (RESEND_BACKOFF_SEC)."""
     if entry.get("apply_sent"):
         return True
     if not (os.environ.get("GITHUB_PAT") or "").strip():
         return False
     if entry.get("apply_blocked"):
-        return False
+        fp = pat_fingerprint()
+        old_fp = entry.get("blocked_pat_fp")
+        if old_fp and fp == old_fp:
+            # Van la token da tung 403 -> cho token thay, khong thu lai vo ich.
+            return False
+        if old_fp and fp != old_fp:
+            # Token da thay -> mo co, xoa blocked cu, thu gui ngay vong nay.
+            entry.pop("awaiting_token", None)
+            entry.pop("apply_blocked", None)
+            entry.pop("blocked_pat_fp", None)
+            entry.pop("apply_send_tried_at", None)
+            log("Phat hien PAT da thay - mo lai gui don cho %s" % entry["url"])
+        # old_fp rong = entry blocked tu code cu (chua ghi van tay): roi xuong
+        # duoi thu gui 1 lan; neu lai 403 se ghi van tay + co awaiting_token.
     last = entry.get("apply_send_tried_at")
     if last:
         try:
             dt = datetime.fromisoformat(str(last).replace("Z", "+00:00"))
-            if (datetime.now(timezone.utc) - dt).total_seconds() < 6 * 3600:
+            if (datetime.now(timezone.utc) - dt).total_seconds() < RESEND_BACKOFF_SEC:
                 return False
         except Exception:
             pass
@@ -682,7 +811,7 @@ def resend_apply(entry):
         doc = fh.read()
     if "## Noi dung comment se gui" not in doc:
         return False
-    comment_body = doc.split("## Noi dung comment se gui", 1)[1].strip()
+    comment_body = sanitize_comment_body(doc.split("## Noi dung comment se gui", 1)[1].strip())
     p = parse_issue_url(entry["url"])
     if not p or not comment_body:
         return False
@@ -691,6 +820,8 @@ def resend_apply(entry):
     if st in (200, 201):
         entry["apply_sent"] = True
         entry["apply_comment_url"] = (d or {}).get("html_url", "")
+        entry.pop("awaiting_token", None)
+        entry.pop("blocked_pat_fp", None)
         telegram_send("[Pepper Hunter Doer] DA GUI DON XIN VIEC (gui bo sung)\n%s\nLink: %s"
                       % (entry["title"], entry["url"]))
         log("Da gui bo sung don: %s" % entry["url"])
@@ -699,6 +830,8 @@ def resend_apply(entry):
     if st == 403:
         entry["apply_blocked"] = ("PAT fine-grained khong comment duoc repo nguoi khac "
                                    "(HTTP 403) - can classic PAT scope public_repo")
+        entry["awaiting_token"] = True
+        entry["blocked_pat_fp"] = pat_fingerprint()
     return False
 
 
@@ -824,15 +957,15 @@ def check_submitted(entry):
 
 
 # ---------------------------------------------------------------- STATUS + git
-def write_status(state, latest_ts, registered_this_cycle=0):
+def write_status(state, latest_ts, registered_this_cycle=0, cycle_errors=0):
     counts = {}
     for e in state.values():
         counts[e.get("status", "?")] = counts.get(e.get("status", "?"), 0) + 1
     vn = datetime.now(timezone.utc) + timedelta(hours=7)
     lines = ["# Pepper Hunter Doer - STATUS",
              "",
-             "Dang chay binh thuong - cap nhat %s VN, tong keo dang theo doi: %d, moi dang ky vong nay: %d"
-             % (vn.strftime("%H:%M"), len(state), registered_this_cycle),
+             "Dang chay binh thuong - cap nhat %s VN, tong keo dang theo doi: %d, moi dang ky vong nay: %d, loi da cach ly vong nay: %d"
+             % (vn.strftime("%H:%M"), len(state), registered_this_cycle, cycle_errors),
              "Cap nhat: %s (VN) / %s (UTC)" % (vn.strftime("%Y-%m-%d %H:%M:%S"),
                                                datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")),
              "Worker /latest ts: %s" % (latest_ts or "chua co"),
@@ -847,6 +980,7 @@ def write_status(state, latest_ts, registered_this_cycle=0):
              ("da_tra", "Da tra (co bang chung)"),
              ("lost", "Thua / da co nguoi nhan / issue dong"),
              ("het_han", "Het han cho"),
+             ("skipped_trap", "Bo qua - repo bay bot (khong dang ky, khong gui don)"),
              ("new", "Moi dang ky")]
     for status, label in order:
         rows = [e for e in state.values() if e.get("status") == status]
@@ -863,8 +997,12 @@ def write_status(state, latest_ts, registered_this_cycle=0):
                     extra = " - don: da gui"
                 elif e.get("apply_blocked"):
                     extra = " - don: CHUA GUI DUOC - " + e["apply_blocked"]
+                    if e.get("awaiting_token"):
+                        extra += " (dang cho classic PAT - tu gui lai ngay khi token thay)"
                 else:
                     extra = " - don: da soan, CHO PAT de gui"
+            elif status == "skipped_trap":
+                extra = " - ly do: " + (e.get("note") or "repo bay bot")
             lines.append("- [%s](%s) - %s/%s - %s%s"
                          % (e["title"][:90], e["url"], e.get("mode", "?"), e.get("type", "?"),
                             budget, extra))
@@ -919,8 +1057,25 @@ def process_cycle(state, pool, pool_state):
     Tra dict {latest_ts, new_registered, changed} - main quyet dinh commit/heartbeat."""
     changed = False
     new_registered = 0
+    cycle_errors = 0
     latest_ts = None
     pre_existing = set(state.keys())
+
+    # --- Migration cong bay bot: keo da nam trong state ma thuoc repo bay ->
+    # skipped_trap (khong gui don, khong xu ly nua) + bao Telegram 1 lan.
+    for url, entry in list(state.items()):
+        if entry.get("status") in ("new", "applied", "assigned", "working"):
+            reason = trap_repo_reason(url)
+            if reason:
+                entry["status"] = "skipped_trap"
+                entry["note"] = reason
+                changed = True
+                log("Chuyen skipped_trap: %s" % url)
+        if entry.get("status") == "skipped_trap" and not entry.get("trap_notified"):
+            if telegram_send("[Pepper Hunter Doer] BO QUA KEO BAY BOT (khong gui don)\n%s\nLink: %s\nLy do: %s"
+                             % (entry["title"], url, entry.get("note", "repo bay bot"))):
+                entry["trap_notified"] = True
+                changed = True
 
     # --- Intake 1: Worker /latest (deals cua tick gan nhat + queue tich luy)
     # PHAI gui User-Agent rieng: Cloudflare chan UA mac dinh "Python-urllib"
@@ -941,9 +1096,13 @@ def process_cycle(state, pool, pool_state):
             seen_now.add(url)
             if new_registered >= MAX_NEW_PER_CYCLE:
                 break
-            if register_deal(state, deal) is not None:
-                new_registered += 1
-                changed = True
+            try:
+                if register_deal(state, deal) is not None:
+                    new_registered += 1
+                    changed = True
+            except Exception as e:
+                cycle_errors += 1
+                log("Loi dang ky keo (intake 1) %s: %s" % (url, e))
     else:
         log("Doc /latest loi (HTTP %s) - van chay intake tu quet" % st)
 
@@ -959,9 +1118,13 @@ def process_cycle(state, pool, pool_state):
         if new_registered >= MAX_NEW_PER_CYCLE:
             log("Da dat tran %d dang ky moi/vong - phan con lai de vong sau" % MAX_NEW_PER_CYCLE)
             break
-        if register_deal(state, deal) is not None:
-            new_registered += 1
-            changed = True
+        try:
+            if register_deal(state, deal) is not None:
+                new_registered += 1
+                changed = True
+        except Exception as e:
+            cycle_errors += 1
+            log("Loi dang ky keo (intake 2) %s: %s" % (deal.get("url"), e))
 
     # --- Backfill thong bao: keo dang ky tu cac lan chay bi hong kenh (secret
     # Telegram tung rong gia tri nen su kien dang ky chua bao gio gui duoc) ->
@@ -969,7 +1132,7 @@ def process_cycle(state, pool, pool_state):
     backfilled = 0
     for url in pre_existing:
         e = state.get(url)
-        if not e or e.get("status") in ("lost", "het_han", "pipeline-test"):
+        if not e or e.get("status") in ("lost", "het_han", "pipeline-test", "skipped_trap"):
             continue
         if not e.get("notified_registered"):
             e["notified_registered"] = True
@@ -998,6 +1161,7 @@ def process_cycle(state, pool, pool_state):
                 make_product(entry, pool, pool_state, fetch_issue_info(url))
             elif status == "applied":
                 if not entry.get("apply_sent"):
+                    ensure_apply_file_money(entry)
                     resend_apply(entry)
                 verdict = check_assignment(entry)
                 if verdict == "assigned":
@@ -1022,6 +1186,8 @@ def process_cycle(state, pool, pool_state):
                 telegram_send("[Pepper Hunter Doer] TIEN VE!\n%s\nLink: %s" % (entry["title"], url))
                 entry["paid_notified"] = True
         except Exception as e:
+            cycle_errors += 1
+            entry["last_error"] = "%s - %s" % (now_iso(), str(e)[:200])
             log("Loi xu ly keo %s: %s" % (url, e))
         after = json.dumps({k: v for k, v in entry.items() if k != "updated_at"},
                            sort_keys=True, ensure_ascii=False, default=str)
@@ -1029,8 +1195,11 @@ def process_cycle(state, pool, pool_state):
             entry["updated_at"] = now_iso()
             changed = True
 
+    if cycle_errors:
+        log("Vong nay co %d loi da cach ly (khong chet vong)" % cycle_errors)
     save_state(state)
-    return {"latest_ts": latest_ts, "new_registered": new_registered, "changed": changed}
+    return {"latest_ts": latest_ts, "new_registered": new_registered,
+            "changed": changed, "errors": cycle_errors}
 
 
 def main():
@@ -1052,10 +1221,15 @@ def main():
     budget_sec = LOOP_BUDGET_MIN * 60
     last_commit = 0.0  # monotonic cua lan commit+push gan nhat (heartbeat)
     while True:
-        res = process_cycle(state, pool, pool_state)
+        try:
+            res = process_cycle(state, pool, pool_state)
+        except Exception as e:
+            # 1 vong loi la khong duoc giet ca job: log + van ghi heartbeat.
+            log("LOI TOAN VONG (da cach ly, job van tiep tuc): %s" % e)
+            res = {"latest_ts": None, "new_registered": 0, "changed": True, "errors": 1}
         heartbeat_due = (time.monotonic() - last_commit) >= HEARTBEAT_SEC
         if res["changed"] or heartbeat_due or DOER_ONCE:
-            write_status(state, res["latest_ts"], res["new_registered"])
+            write_status(state, res["latest_ts"], res["new_registered"], res.get("errors", 0))
             git_commit_push("doer: vong %s - %d keo dang theo doi, moi dang ky %d"
                             % (datetime.now(timezone.utc).strftime("%H:%M"),
                                len(state), res["new_registered"]))

@@ -19,6 +19,23 @@ Bản đầu có 1 lỗi kép khiến doer chạy mà **không kèo nào lọt v
 
 Sự kiện Telegram khi nạp kèo: **"NHAN KEO MOI VAO XU LY: \<title\> | mode: … | ngan sach: …"** ngay khi đăng ký, và **"BAT DAU XU LY: \<title\>"** khi bắt đầu sinh đơn/sản phẩm — mỗi sự kiện chỉ gửi 1 lần (cờ `notified_registered` / `notified_started` trong state, gửi thành công mới đặt cờ).
 
+## Cổng chặn repo bẫy bot (thêm 19:58 10/11)
+
+Repo có **owner hoặc tên chứa `trap` / `honeypot` / `benchmark`** = bẫy dụ bot săn bounty (mẫu đã xác nhận: `PhanKhoa95/oss-bot-trap-benchmark` — 2 "kèo" $1.500/$1.600 không tiền thật). Luật áp **nhất quán ở cả 3 tầng** (`doer.py` + `hunter.py` + `worker/worker.js`): không đăng ký mới ở mọi intake; kèo đã lỡ nằm trong state thì doer tự chuyển **`skipped_trap`** kèm lý do hiện trong STATUS.md, không bao giờ gửi đơn, và báo Telegram "BO QUA KEO BAY BOT" 1 lần/kèo (cờ `trap_notified`, thử lại mỗi vòng tới khi gửi được). Chỉ xét owner/tên repo trong URL — không xét title/body để tránh bắt nhầm.
+
+## Xử lý trọn vòng — không kèo nào chết đứng (thêm 19:58 10/11)
+
+- **Kèo chưa ghi ngân sách**: đơn luôn kèm đoạn hỏi tiền bắt buộc (`ASK_MONEY_EN`). Gemini quên chèn → code tự nối (`ensure_ask_money`); APPLY.md soạn từ các bản cũ thiếu đoạn hỏi → doer tự bổ sung vào file trước khi gửi (`ensure_apply_file_money`).
+- **Thân comment gửi đi không còn placeholder**: mọi thân đơn (Gemini soạn, template, hay lấy lại từ APPLY.md khi gửi bổ sung) đều qua `sanitize_comment_body` — `[X] days` → `3 days`, `[X]` → `3`. Template offline ghi thẳng "My ETA is 3 days from assignment"; prompt Gemini cũng bắt buộc ghi số ngày cụ thể.
+- **Fallback template rõ nhãn ở MỌI bước**: hết pool Gemini (429/403 project) → đơn dùng template, sản phẩm `viet`/`khac` dùng khung template, kèo `code` vẫn có `SOLUTION.md` template + `code-draft.md` ghi rõ "chưa sinh được — chờ Gemini phục hồi" (`product_incomplete`). `apply_mode`/`product_mode` trong state luôn ghi nguồn soạn (gemini key/model nào, hay template + lý do).
+- Kèo `lam_ngay` được sinh sản phẩm ngay cả khi chưa ai giao; kèo `cho_duoc_chon` chỉ sinh sản phẩm sau khi `assigned` (đúng máy trạng thái ở dưới).
+
+## Mượt mà — hết khựng (thêm 19:58 10/11)
+
+- **Gửi lại đơn**: lỗi tạm thời → thử lại sau tối đa **30 phút** (`DOER_RESEND_BACKOFF_SEC`, thay cho 6 giờ cũ). Lỗi **403-do-token** → gắn cờ `awaiting_token` + vân tay PAT lúc bị chặn (`blocked_pat_fp` = sha256 rút gọn, không lưu giá trị token): không thử lại bằng token cũ; **ngay khi vân tay PAT thay đổi (đã thay classic PAT) thì tự mở cờ và gửi lại ở vòng kế tiếp**. Entry `apply_blocked` từ code cũ (chưa có vân tay) được thử gửi 1 lần để ghi vân tay mới.
+- **Cách ly lỗi theo kèo**: xử lý từng kèo + từng điểm nạp intake đều bọc try/except riêng; lỗi được đếm vào dòng đầu STATUS.md ("loi da cach ly vong nay: N") và ghi `last_error` vào entry — 1 kèo văng lỗi không chết cả vòng, 1 vòng lỗi không giết job.
+- **Chuỗi tự nối không phụ thuộc GH_PAT**: cuối job, doer tự dispatch run kế bằng **`GITHUB_TOKEN` của chính run** (env `GH_TOKEN`, permissions `actions: write`) — GH_PAT chỉ dùng cho comment/PR/sản phẩm. Dự phòng vẫn còn: schedule `*/5` trong `doer.yml` + concurrency group `pepper-hunter-doer`.
+
 **Heartbeat STATUS**: `STATUS.md` luôn có dòng "Dang chay binh thuong - cap nhat HH:MM VN, tong keo dang theo doi: N, moi dang ky vong nay: M" và được commit lại **tối thiểu mỗi ~15 phút** (`DOER_HEARTBEAT_SEC`, mặc định 900) kể cả khi không có thay đổi — mở STATUS là biết hệ sống. (Vá kèm: `git push` phải dùng `HEAD:main` vì `actions/checkout` để repo ở detached HEAD — `git push` trần lỗi "not currently on a branch".)
 
 ## Máy trạng thái (quan trọng nhất)
@@ -68,5 +85,5 @@ Nhiều kèo **phải thắng/được chọn trước mới được làm** (ki
 
 1. Duyệt quyền ghi cho Muse GitHub App trên repo `pepper-hunter-cron` (hoặc upload toàn bộ file qua web) — xem báo cáo của agent chính.
 2. Đặt repo secrets: `GEMINI_API_KEYS`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
-3. Tạo **classic PAT** GitHub (tài khoản Luando-tester, scope `public_repo`) → đặt secret `GH_PAT` — thiếu PAT (hoặc dùng fine-grained) thì hệ vẫn soạn đơn + sản phẩm nhưng **không gửi comment/mở PR lên repo người khác được** (403). Bài học 10/11: 3 secrets `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`/`GH_PAT` từng bị đặt **rỗng giá trị** (API vẫn báo 201 và list vẫn hiện tên) khiến kênh Telegram + gửi đơn chết im lặng trong khi Gemini vẫn chạy — khi nghi ngờ, kiểm tra độ dài thật của env trong 1 workflow chẩn đoán, đừng tin danh sách tên secret. Secrets bị rỗng đã được đặt lại; các kèo đăng ký trong thời gian hỏng kênh được **backfill thông báo** bằng 1 tin tổng hợp "KENH THONG BAO DA SONG LAI" thay vì bắn lại từng sự kiện cũ.
+3. ~~Tạo **classic PAT** GitHub (scope `public_repo`) → đặt secret `GH_PAT`~~ — **ĐÃ XONG 20:11 10/11**: classic PAT scope `public_repo` đã nằm trong secret `GH_PAT` (lượt đầu Luân quên tick scope → 403 "Must have admin rights", sửa scope tại chỗ trên token, giá trị không đổi). Kiểm chứng: đơn kèo tari#3489 đã gửi thật bằng token này (comment 6768221502, state đã ghi `apply_sent=true` để doer không gửi trùng). Mọi run doer **bắt đầu sau 20:11 10/11** đều mang token classic → 12 đơn `applied` còn chờ sẽ tự gửi bổ sung nhờ cơ chế vân tay PAT ở mục "Mượt mà". Thiếu PAT (hoặc dùng fine-grained) thì hệ vẫn soạn đơn + sản phẩm nhưng **không gửi comment/mở PR lên repo người khác được** (403). Bài học 10/11: 3 secrets `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`/`GH_PAT` từng bị đặt **rỗng giá trị** (API vẫn báo 201 và list vẫn hiện tên) khiến kênh Telegram + gửi đơn chết im lặng trong khi Gemini vẫn chạy — khi nghi ngờ, kiểm tra độ dài thật của env trong 1 workflow chẩn đoán, đừng tin danh sách tên secret. Secrets bị rỗng đã được đặt lại; các kèo đăng ký trong thời gian hỏng kênh được **backfill thông báo** bằng 1 tin tổng hợp "KENH THONG BAO DA SONG LAI" thay vì bắn lại từng sự kiện cũ.
 4. Actions tab: bấm Run workflow `Pepper Hunter Doer` lần đầu để khởi động chuỗi tự nối.
