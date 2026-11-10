@@ -87,3 +87,15 @@ Nhiều kèo **phải thắng/được chọn trước mới được làm** (ki
 2. Đặt repo secrets: `GEMINI_API_KEYS`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
 3. ~~Tạo **classic PAT** GitHub (scope `public_repo`) → đặt secret `GH_PAT`~~ — **ĐÃ XONG 20:11 10/11**: classic PAT scope `public_repo` đã nằm trong secret `GH_PAT` (lượt đầu Luân quên tick scope → 403 "Must have admin rights", sửa scope tại chỗ trên token, giá trị không đổi). Kiểm chứng: đơn kèo tari#3489 đã gửi thật bằng token này (comment 6768221502, state đã ghi `apply_sent=true` để doer không gửi trùng). Mọi run doer **bắt đầu sau 20:11 10/11** đều mang token classic → 12 đơn `applied` còn chờ sẽ tự gửi bổ sung nhờ cơ chế vân tay PAT ở mục "Mượt mà". Thiếu PAT (hoặc dùng fine-grained) thì hệ vẫn soạn đơn + sản phẩm nhưng **không gửi comment/mở PR lên repo người khác được** (403). Bài học 10/11: 3 secrets `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`/`GH_PAT` từng bị đặt **rỗng giá trị** (API vẫn báo 201 và list vẫn hiện tên) khiến kênh Telegram + gửi đơn chết im lặng trong khi Gemini vẫn chạy — khi nghi ngờ, kiểm tra độ dài thật của env trong 1 workflow chẩn đoán, đừng tin danh sách tên secret. Secrets bị rỗng đã được đặt lại; các kèo đăng ký trong thời gian hỏng kênh được **backfill thông báo** bằng 1 tin tổng hợp "KENH THONG BAO DA SONG LAI" thay vì bắn lại từng sự kiện cũ.
 4. Actions tab: bấm Run workflow `Pepper Hunter Doer` lần đầu để khởi động chuỗi tự nối.
+
+## WATCHES (hệ anh em — từ 10/11/2026)
+
+Repo này còn chứa hệ WATCHES: `watches/watch.py` + workflow `watch.yml`
+(7 watch kiếm tiền port từ cron Muse của tab kiếm tiền: Synmerco, CC0,
+MoltJobs, Owockibot, Fiverr, Boards, Seller inbox — xem bảng đầy đủ ở
+README.md). Mặt tiền trạng thái là `WATCHES.md` (gốc repo), state ở
+`state/watches_state.json` — tách bạch với `STATUS.md`/`doer_state.json`
+của DOER, hai hệ commit các file khác nhau nên không giẫm nhau (watch có
+thêm rebase-retry khi push). DOER chỉ làm việc trên GitHub; WATCHES lo
+phần còn lại của mảng kiếm tiền. Fiverr + Seller inbox đang chờ consent
+Gmail OAuth; CC0 fulfill/sweep thuộc phase 2 (Worker CC0 tự fulfill).

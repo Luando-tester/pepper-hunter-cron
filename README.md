@@ -83,3 +83,31 @@ cách đặt giống mục B; hoặc `GEMINI_API_KEY` 1 key như cũ),
   ở Cloudflare Worker.
 - Work pack do Gemini soạn là **bản chuẩn bị** (kế hoạch + khung deliverable +
   mẫu comment). Bước bid/nộp cuối trên sàn vẫn cần tài khoản của Luân.
+
+## WATCHES — 7 watch kiếm tiền (từ 10/11/2026)
+
+Theo lệnh của Luân, 7 watch kiếm tiền của PepperResearch (trước chạy bằng
+cron agent Muse ở tab kiếm tiền) đã được port sang GitHub Actions TRONG
+repo này — chung nhà với Worker Hunter + DOER, để không đốt token Muse
+nữa. Code: `watches/watch.py`; workflow: `.github/workflows/watch.yml`
+(vòng lặp tự nối ~330 phút, chu kỳ 60 giây/vòng, schedule */5 dự phòng —
+pattern giống hệt DOER). Trạng thái sống từng watch: **`WATCHES.md`** ở
+gốc repo; state dedupe bền: `state/watches_state.json`. Báo cáo ra cùng
+group Telegram của hệ (secrets `TELEGRAM_BOT_TOKEN`/`TELEGRAM_CHAT_ID`
+dùng chung).
+
+| Watch | Nguồn | Hành vi | Điều kiện chạy thật |
+|---|---|---|---|
+| Synmerco | `synmerco-escrow.onrender.com` | Kèo sạch mới → **BID NGAY** theo luật giá 3 mức + lệch ngân sách (07/11); tự thêm capability khi 412; vòng lặp hạ giá theo đối thủ; báo thắng thầu | Secret `SYNMERCO_API_KEY` |
+| CC0 storefront | KV `cc0-jobs` (Cloudflare) | Đọc index `meta:recent_job_ids` (bản vá KV-429), báo đơn PAID mới + probe + cảnh báo coverage. Chỉ đọc — fulfill/sweep là phase 2 (mở rộng Worker CC0) | Secret `CC0_CF_API_TOKEN` |
+| MoltJobs | `api.moltjobs.io` | Stats trigger (public, luôn chạy) + heartbeat/assignment/job sạch; khung đêm 21:00–06:00 VN tự bid job đã kiểm chứng funded (ledger ≤10 bid free/tháng) | Secret `MOLTJOBS_API_KEY` |
+| Owockibot | `bounty.owockibot.xyz` | Bounty sạch mới → **TỰ CLAIM** theo luật Luân duyệt 27/10 (chỉ cần địa chỉ ví MetaMask công khai — không cần credential) | Không cần secret |
+| Fiverr | Gmail (mail thông báo seller) | **CHỜ-CONSENT**: bản gốc đọc qua Gmail — cần Luân consent Gmail OAuth 1 lần (giai đoạn 2), chưa port phần đọc mail | Gmail OAuth |
+| Boards | Superteam / Taskmarket / HYRVE / Frantic | Kèo mới qua cổng sạch → báo; RaptorX đổi trạng thái/công bố winner → báo ngay | Không cần secret |
+| Seller inbox | Gmail (Gumroad/Codester/Wirestock/Adobe/Upwork/Dreamstime) | **CHỜ-CONSENT** như Fiverr — không port phần đọc mail | Gmail OAuth |
+
+Nguyên tắc chuyển giao (cứng, từ brief bàn giao tab kiếm tiền): cron Muse
+ở tab kiếm tiền CHỈ tắt sau khi đường Actions tương ứng chạy thật và ra
+đúng kết quả (việc chạm tiền phải chạy song song ≥3 lượt khớp + sự kiện
+tiền thật đầu tiên qua đường mới có giám sát). Trong thời gian song song
+chỉ một phía hành động ra ngoài cho mỗi nền tảng.
