@@ -41,6 +41,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_CHAT_ID_2: ${{ secrets.TELEGRAM_CHAT_ID_2 }}
           SYNMERCO_API_KEY: ${{ secrets.SYNMERCO_API_KEY }}
           MOLTJOBS_API_KEY: ${{ secrets.MOLTJOBS_API_KEY }}
           CC0_CF_API_TOKEN: ${{ secrets.CC0_CF_API_TOKEN }}
