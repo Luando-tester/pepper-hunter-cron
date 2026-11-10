@@ -1,0 +1,48 @@
+# Pepper Hunter DOER - tang TU LAM (Gemini la thang lam, Actions la thang thuc thi).
+# Worker Cloudflare chi san keo moi phut; doer doc GET /latest cua Worker,
+# chay MAY TRANG THAI trong doer.py (applied -> assigned -> working ->
+# submitted -> cho_tra) va tu lam san pham that vao deliverables/.
+#
+# Cach chay lien tuc du lich Actions toi thieu 5 phut: job VONG LAP TU NOI -
+# chay toi da ~330 phut (moi 60s 1 vong), gan het gio tu workflow_dispatch
+# run moi bang gh CLI. Schedule */5 chi la moi/du phong khi chuoi bi dut;
+# concurrency group chan 2 job chay trung.
+#
+# Secrets can dat o repo (Settings > Secrets and variables > Actions):
+#   GEMINI_API_KEYS     pool key Gemini cua Luân (toi da 10)
+#   TELEGRAM_BOT_TOKEN  bot @Pepperhunter12_bot
+#   TELEGRAM_CHAT_ID    group -5598436435
+#   GITHUB_PAT          PAT cua Luando-tester de gui comment xin viec + mo PR
+#                       (thieu PAT: doer chi soan don/san pham, khong gui/nop)
+name: Pepper Hunter Doer
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "*/5 * * * *"
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: pepper-hunter-doer
+  cancel-in-progress: false
+
+jobs:
+  doer:
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Chay doer (vong lap tu noi ~330 phut)
+        env:
+          GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GITHUB_PAT: ${{ secrets.GITHUB_PAT }}
+          GH_TOKEN: ${{ github.token }}
+          WORKER_URL: https://pepper-hunter.pepperresearch.workers.dev
+        run: python3 doer.py

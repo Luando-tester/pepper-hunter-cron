@@ -1,0 +1,46 @@
+name: Pepper Hunter (chay tay)
+
+# THIET KE MOI (theo lenh cua Luan): LICH DINH KY DO CLOUDFLARE WORKER GANH
+# (cron */30 trong worker/wrangler.toml) de tiet kiem phut GitHub Actions.
+# Workflow nay KHONG co schedule - chi chay tay bang workflow_dispatch khi can
+# viec nang (sinh work pack day du bang hunter.py va commit thang vao repo).
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  hunt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cai Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Chay hunter.py
+        env:
+          # Pool toi da 10 key Gemini (ngan cach dau phay) - uu tien bien nay;
+          # GEMINI_API_KEY cu van giu lam du phong 1 key neu pool chua dat.
+          GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python hunter.py
+
+      - name: Commit state + packs (neu thay doi)
+        run: |
+          git config user.name "pepper-hunter-bot"
+          git config user.email "actions@github.com"
+          git add state packs
+          if git diff --cached --quiet; then
+            echo "Khong co thay doi - khong commit."
+          else
+            git commit -m "hunter: cap nhat state + packs [skip ci]"
+            git push
+          fi
