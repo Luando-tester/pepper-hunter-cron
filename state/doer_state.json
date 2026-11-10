@@ -542,5 +542,27 @@
   "applied_at": "2026-11-10T20:26:09.084566+00:00",
   "apply_sent": true,
   "apply_comment_url": "https://github.com/Mantitup-Org/vista/issues/62#issuecomment-6778409267"
+ },
+ "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4277": {
+  "title": "[Bounty] 💎 [Escrowed $450 USDC] 24-Vector Conformance Suite: Streaming MCP SSE Chunk Boun",
+  "url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4277",
+  "slug": "zhangjiayang6835-cyber-bounty-plaza-4277",
+  "budget_usd": 450.0,
+  "pack": "### 赏金平台 / Platform GitHub ### 原始链接 / Source URL https://github.com/IES-BoilerRoom/ebpf-verifier-reg-bounds/issues/1 ### 漏洞描述 / Description 💎 [Escrowed $450 USDC] 24-Vector Conformance Suite: Streaming MCP SSE Chunk Boundary Reassembly with Backpressure Backoff > **Automated CI Regression Mirror Notice**: Automated CI conformance runner issue; manual pull requests from human engineers are not reviewed on this mirror. - **Escrow Rail**: https://algora.io / https://polar.sh / https://opire.dev - **Funding Status**: Held in escrow — Reward: $450 USDC (paid automatically on merge; `/attempt` or `/",
+  "status": "applied",
+  "created_at": "2026-11-10T21:08:14.997049+00:00",
+  "updated_at": "2026-11-10T21:08:32.754026+00:00",
+  "files": [
+   "deliverables/zhangjiayang6835-cyber-bounty-plaza-4277/APPLY.md"
+  ],
+  "type": "code",
+  "mode": "cho_duoc_chon",
+  "mode_reason": "issue co dau hieu cho giao viec: 'algora'",
+  "notified_registered": true,
+  "notified_started": true,
+  "apply_mode": "gemini (key #1, gemini-3.5-flash-lite)",
+  "applied_at": "2026-11-10T21:08:31.010673+00:00",
+  "apply_sent": true,
+  "apply_comment_url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4277#issuecomment-6779309694"
  }
 }
