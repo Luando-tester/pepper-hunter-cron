@@ -363,5 +363,27 @@
   "note": "san pham da xong - CHO PAT de nop PR",
   "notified_registered": true,
   "notified_started": true
+ },
+ "https://github.com/Conxian/conxius-enclave-sdk/issues/726": {
+  "title": "[Challenge] Independently review the release-signing design and the ceremony invite",
+  "url": "https://github.com/Conxian/conxius-enclave-sdk/issues/726",
+  "slug": "Conxian-conxius-enclave-sdk-726",
+  "budget_usd": null,
+  "pack": "# Work pack (Gemini soan)\n\n- Keo: [Challenge] Independently review the release-signing design and the ceremony invite\n- Link: https://github.com/Conxian/conxius-enclave-sdk/issues/726\n\n---\n\nChào bạn, đây là **Work Pack** chuẩn bị sẵn sàng cho bạn (freelancer) để \"săn\" kèo GitHub bounty này một cách chuyên nghiệp và an toàn nhất.\n\n---\n\n### 1. Tóm tắt yêu cầu (Scope of Work)\n* **Mục tiêu:** Review độc lập (adversarial review) toàn bộ thiết kế ký phát hành (release-signing design) và quy trình buổi lễ (ceremony invite) của repo `Conxian/conxius-enclave-sdk` (Issue #726).\n* **Phạm vi kiểm tra:**\n  1. `docs/operations/THRESHOLD_DKG_CEREMONY.md` (Quy trình DKG & cổng kiểm toán).\n  2. `docs/architecture/THRESHOLD_ATTESTATION_DESIGN.md` (Schema chứng thực ngưỡng - threshold attestation).\n  3. `docs/operations/JOIN_THE_CEREMONY.md` (Thư mời tham gia lễ #719).\n  4. Đường dẫn ký phát hành có giá trị thực (value-bearing signing path).\n* **Claim cần test:** Thiết kế 2-of-3 FROST ceremony, schema chứng thực và thư mời hoàn toàn chính xác, an toàn, không có lỗ hổng logic hay tính trung thực.\n\n---\n\n### 2. Kế hoạch từng bước & Cách tự kiểm tra (Step-by-step & Self-check)\n\n* **Bước 1: Clone repo & Đọc tài liệu**\n  * *Hành động:* Clone `Conxian/conxius-enclave-sdk`, đọc kỹ 3 file docs và PR/Issue liên quan đến thư mời.\n  * *Tự kiểm tra:* Đã nắm chắc mô hình toán học/logic của FROST 2-of-3 và quy trình tạo khóa phân tán (DKG) chưa?\n* **Bước 2: Review đối kháng (Adversarial Review)**\n  * *Hành động:* Đặt giả định là kẻ tấn công (hoặc bên tham gia gian dối). Tìm điểm yếu trong: cách chia sẻ key, thời gian (timing), điểm mù của audit gate, và các edge-case trong `JOIN_THE_CEREMONY.md`.\n  * *Tự kiểm tra:* Liệu có kịch bản nào 2 bên thông đồng chiếm quyền ký không? Schema attestation có bịa đặt được không?\n* **Bước 3: Viết báo cáo Findings**\n  * *Hành động:* Tổng hợp lỗi (nếu có) hoặc xác nhận tính an toàn kèm bằng chứng/lập luận chặt chẽ.\n* **Bước 4: Submit PR/Issue comment**\n  * *Hành động:* Đóng gói báo cáo thành markdown rõ ràng, gửi vào Issue #726 hoặc tạo PR vá tài liệu/code nếu phát hiện bug.\n\n---\n\n### 3. Khung Deliverable (Sản phẩm bàn giao)\nBáo cáo của bạn trên GitHub cần đạt chuẩn sau:\n1. **Executive Summary:** Tóm tắt kết quả (Pass / Fail / Cần cải thiện).\n2. **Methodology:** Phương pháp tiếp cận (Threat modeling, code/doc walkthrough).\n3. **Findings / Vulnerabilities:** Danh sách lỗi (nếu có) theo mức độ (Critical, High, Medium, Low) kèm mô tả PoC hoặc phân tích logic.\n4. **Recommendations:** Đề xuất cụ thể để vá lỗi thiết kế hoặc cải thiện tài liệu.\n\n---\n\n### 4. Điểm chưa rõ & Mẫu câu hỏi Budget (BẮT BUỘC GỬI TRƯỚC KHI LÀM)\n\nVì title chưa ghi ngân sách, bạn **tuyệt đối không được bắt tay làm ngay** khi chưa chốt tiền công. Hãy copy đoạn tiếng Anh dưới đây paste thẳng vào Issue #726:\n\n> Hi team, I'm ready to take on this independent review. However, since the budget is currently unlisted, could you please clarify the following details before I start?\n> \n> 1. **Budget/Reward:** What is the exact bounty amount for this task?\n> 2. **Payment Method:** How will the reward be paid (Crypto/USDC, GitHub Sponsors, bank transfer, etc.) and on what network?\n> 3. **Acceptance Criteria:** What are the specific criteria for a successful submission to claim this bounty (e.g., finding at least X critical bugs, or a comprehensive review report approved by maintainers)?\n> \n> Looking forward to your response!",
+  "status": "applied",
+  "created_at": "2026-11-10T12:48:41.524794+00:00",
+  "updated_at": "2026-11-10T12:49:58.637716+00:00",
+  "files": [
+   "deliverables/Conxian-conxius-enclave-sdk-726/APPLY.md"
+  ],
+  "type": "code",
+  "mode": "cho_duoc_chon",
+  "mode_reason": "khong ro dau hieu mo tu do -> mac dinh cho duoc chon (an toan)",
+  "notified_registered": true,
+  "notified_started": true,
+  "apply_mode": "gemini (key #2, gemini-3.6-flash)",
+  "applied_at": "2026-11-10T12:49:57.955221+00:00",
+  "apply_sent": false,
+  "apply_blocked": "PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo"
  }
 }

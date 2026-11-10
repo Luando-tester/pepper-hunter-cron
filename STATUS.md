@@ -1,13 +1,14 @@
 # Pepper Hunter Doer - STATUS
 
-Dang chay binh thuong - cap nhat 19:41 VN, tong keo dang theo doi: 16, moi dang ky vong nay: 0
-Cap nhat: 2026-11-10 19:41:51 (VN) / 2026-11-10 12:41:51 (UTC)
-Worker /latest ts: 2026-11-10T12:41:04.093Z
-Tong keo da theo doi: 16
-Trang thai: applied=14, pipeline-test=1, working=1
+Dang chay binh thuong - cap nhat 19:49 VN, tong keo dang theo doi: 17, moi dang ky vong nay: 1
+Cap nhat: 2026-11-10 19:49:58 (VN) / 2026-11-10 12:49:58 (UTC)
+Worker /latest ts: 2026-11-10T12:48:03.727Z
+Tong keo da theo doi: 17
+Trang thai: applied=15, pipeline-test=1, working=1
 
-## Dang cho duoc chon (da nop don) (14)
+## Dang cho duoc chon (da nop don) (15)
 
+- [[Challenge] Independently review the release-signing design and the ceremony invite](https://github.com/Conxian/conxius-enclave-sdk/issues/726) - cho_duoc_chon/code - chua ghi ngan sach - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
 - [Specify scoped build-bounty rules, alpha funding and governance](https://github.com/ditto-assistant/ditto-subnet/issues/2044) - cho_duoc_chon/code - chua ghi ngan sach - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
 - [Implement bounty acceptance, alpha awards, fee refunds and accounting](https://github.com/ditto-assistant/ditto-subnet/issues/2046) - cho_duoc_chon/code - chua ghi ngan sach - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
 - [[Slice A] Public-evidence coverage score and gap atlas](https://github.com/Element-Ventures-Canada-Ltd/openchokepoint/issues/16) - cho_duoc_chon/code - chua ghi ngan sach - don: CHUA GUI DUOC - PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo
