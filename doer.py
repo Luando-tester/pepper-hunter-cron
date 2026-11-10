@@ -596,6 +596,9 @@ def make_apply(entry, pool, pool_state, info):
                 log("Da GUI don xin viec: %s" % entry["url"])
             else:
                 log("Gui don loi HTTP %s cho %s - don van nam o APPLY.md" % (st, entry["url"]))
+                if st == 403:
+                    entry["apply_blocked"] = ("PAT fine-grained khong comment duoc repo nguoi khac "
+                                               "(HTTP 403) - can classic PAT scope public_repo")
     telegram_send("[Pepper Hunter Doer] %s DON XIN VIEC\n%s\nLink: %s\nMode: cho duoc chon - %s"
                   % ("DA GUI" if entry["apply_sent"] else "DA SOAN (CHO PAT DE GUI)",
                      entry["title"], entry["url"],
@@ -644,6 +647,59 @@ def make_product(entry, pool, pool_state, info):
     entry["product_at"] = now_iso()
     log("Da lam san pham (%s): %s -> %s" % (typ, entry["title"][:60], ", ".join(made)))
     return entry
+
+
+def resend_apply(entry):
+    """Gui LAI don cho entry 'applied' ma don chua gui duoc (lan chay truoc bi
+    hong kenh: secret Telegram/PAT rong gia tri). Than comment lay tu APPLY.md.
+    403 (PAT fine-grained khong viet duoc repo nguoi khac) -> danh dau blocked,
+    khong thu lai lien tuc; loi khac thu lai sau 6 gio."""
+    if entry.get("apply_sent"):
+        return True
+    if not (os.environ.get("GITHUB_PAT") or "").strip():
+        return False
+    if entry.get("apply_blocked"):
+        return False
+    last = entry.get("apply_send_tried_at")
+    if last:
+        try:
+            dt = datetime.fromisoformat(str(last).replace("Z", "+00:00"))
+            if (datetime.now(timezone.utc) - dt).total_seconds() < 6 * 3600:
+                return False
+        except Exception:
+            pass
+    rel = None
+    for f in entry.get("files", []):
+        if f.endswith("APPLY.md"):
+            rel = f
+            break
+    if not rel:
+        return False
+    full = os.path.join(BASE_DIR, rel)
+    if not os.path.isfile(full):
+        return False
+    with open(full, encoding="utf-8") as fh:
+        doc = fh.read()
+    if "## Noi dung comment se gui" not in doc:
+        return False
+    comment_body = doc.split("## Noi dung comment se gui", 1)[1].strip()
+    p = parse_issue_url(entry["url"])
+    if not p or not comment_body:
+        return False
+    entry["apply_send_tried_at"] = now_iso()
+    st, d = gh_api("POST", "/repos/%s/%s/issues/%d/comments" % p, {"body": comment_body})
+    if st in (200, 201):
+        entry["apply_sent"] = True
+        entry["apply_comment_url"] = (d or {}).get("html_url", "")
+        telegram_send("[Pepper Hunter Doer] DA GUI DON XIN VIEC (gui bo sung)\n%s\nLink: %s"
+                      % (entry["title"], entry["url"]))
+        log("Da gui bo sung don: %s" % entry["url"])
+        return True
+    log("Gui bo sung don loi HTTP %s cho %s" % (st, entry["url"]))
+    if st == 403:
+        entry["apply_blocked"] = ("PAT fine-grained khong comment duoc repo nguoi khac "
+                                   "(HTTP 403) - can classic PAT scope public_repo")
+    return False
 
 
 def check_assignment(entry):
@@ -803,7 +859,12 @@ def write_status(state, latest_ts, registered_this_cycle=0):
             if e.get("pr_url"):
                 extra = " - PR: " + e["pr_url"]
             elif status == "applied":
-                extra = " - don: " + ("da gui" if e.get("apply_sent") else "da soan, CHO PAT de gui")
+                if e.get("apply_sent"):
+                    extra = " - don: da gui"
+                elif e.get("apply_blocked"):
+                    extra = " - don: CHUA GUI DUOC - " + e["apply_blocked"]
+                else:
+                    extra = " - don: da soan, CHO PAT de gui"
             lines.append("- [%s](%s) - %s/%s - %s%s"
                          % (e["title"][:90], e["url"], e.get("mode", "?"), e.get("type", "?"),
                             budget, extra))
@@ -859,6 +920,7 @@ def process_cycle(state, pool, pool_state):
     changed = False
     new_registered = 0
     latest_ts = None
+    pre_existing = set(state.keys())
 
     # --- Intake 1: Worker /latest (deals cua tick gan nhat + queue tich luy)
     # PHAI gui User-Agent rieng: Cloudflare chan UA mac dinh "Python-urllib"
@@ -901,6 +963,29 @@ def process_cycle(state, pool, pool_state):
             new_registered += 1
             changed = True
 
+    # --- Backfill thong bao: keo dang ky tu cac lan chay bi hong kenh (secret
+    # Telegram tung rong gia tri nen su kien dang ky chua bao gio gui duoc) ->
+    # danh dau da bao + gui 1 tin TONG HOP duy nhat, khong ban lai tung su kien cu.
+    backfilled = 0
+    for url in pre_existing:
+        e = state.get(url)
+        if not e or e.get("status") in ("lost", "het_han", "pipeline-test"):
+            continue
+        if not e.get("notified_registered"):
+            e["notified_registered"] = True
+            if e.get("status") in ("applied", "working", "submitted", "cho_tra", "da_tra"):
+                e["notified_started"] = True
+            backfilled += 1
+    if backfilled:
+        changed = True
+        counts = {}
+        for e in state.values():
+            counts[e.get("status", "?")] = counts.get(e.get("status", "?"), 0) + 1
+        telegram_send("[Pepper Hunter Doer] KENH THONG BAO DA SONG LAI - dang theo doi %d keo (%s). "
+                      "Tu bay gio moi su kien (nhan keo moi / duoc chon / nop bai / tien ve) se bao ngay."
+                      % (len(state), ", ".join("%s=%d" % kv for kv in sorted(counts.items()))))
+        log("Backfill thong bao cho %d keo cu" % backfilled)
+
     # --- May trang thai
     for url, entry in list(state.items()):
         status = entry.get("status")
@@ -912,6 +997,8 @@ def process_cycle(state, pool, pool_state):
             elif status == "new" and entry.get("mode") == "lam_ngay":
                 make_product(entry, pool, pool_state, fetch_issue_info(url))
             elif status == "applied":
+                if not entry.get("apply_sent"):
+                    resend_apply(entry)
                 verdict = check_assignment(entry)
                 if verdict == "assigned":
                     entry["status"] = "assigned"
