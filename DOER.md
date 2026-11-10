@@ -4,11 +4,22 @@ Hệ không chỉ tìm kèo + báo: **nó tự làm ra sản phẩm**. Ba tầng
 
 | Tầng | Ai | Việc |
 |---|---|---|
-| Săn | Cloudflare Worker `pepper-hunter` (cron **mỗi phút**) | Quét GitHub bounty → cổng sạch → Gemini soạn work pack → Telegram; ghi vòng mới nhất vào KV `run:last`, đọc qua `GET /latest` |
+| Săn | Cloudflare Worker `pepper-hunter` (cron **mỗi phút**) | Quét GitHub bounty → cổng sạch → Gemini soạn work pack → Telegram; ghi vòng mới nhất vào KV `run:last` + **hàng đợi tích lũy KV `queue`** (cap 100, dedupe theo url), đọc qua `GET /latest` |
 | Thực thi | **GitHub Actions** — workflow `doer.yml` | Job vòng lặp tự nối ~330 phút, mỗi 60 giây chạy 1 vòng `doer.py` |
 | Làm | **Gemini** (pool key account `donguyenthanhluan123@gmail.com`, repo secret `GEMINI_API_KEYS`, xoay 3.5 → 3.6 → 3.5-lite như Worker) | Soạn đơn xin việc + soạn sản phẩm thật |
 
 > Thiết kế cũ "cron phía Muse chạy doer" đã BỎ. Muse chỉ còn vai trò kiểm tra/bảo trì hệ, không nằm trong vòng vận hành.
+
+## Intake — 2 nguồn nạp kèo (vá lỗi 19:0x 10/11)
+
+Bản đầu có 1 lỗi kép khiến doer chạy mà **không kèo nào lọt vào xử lý**: (1) nó chỉ đọc `GET /latest` — mà `/latest` chỉ giữ kèo của tick gần nhất, nên 9 kèo sạch đầu tiên (vòng 17:50) đã bị tick sau ghi đè trước khi doer khởi động; (2) Cloudflare chặn User-Agent mặc định `Python-urllib` (HTTP 403) và code cũ **return sớm ngay tại bước này**, bỏ qua toàn bộ vòng — kể cả ghi STATUS và commit, nên STATUS.md đứng yên như hệ chết. Đã vá:
+
+1. **Intake 1 — Worker `/latest`**: doer đọc cả `deals` (tick gần nhất) lẫn `queue` (hàng đợi tích lũy của Worker), và luôn gửi User-Agent riêng `pepper-hunter-doer/1.0`. Lỗi `/latest` không còn giết vòng — intake 2 vẫn chạy.
+2. **Intake 2 — doer tự quét GitHub Search**: mỗi vòng, doer tự chạy cùng bộ truy vấn của hunter (`label:bounty`, 3 ý định code/"AI agent"/writing, cap 2/repo), qua đúng cổng sạch (BANNED + bỏ qua "site credit"), và **đăng ký mọi kèo đang mở chưa có trong `state/doer_state.json`** — đây là đường bắt lại các kèo đã trôi (kèo còn mở trên sàn là bắt được; đã đóng/đã có assignee khác → ghi `lost` như logic sẵn có). Tổng đăng ký mới tối đa 12 kèo/vòng (`MAX_NEW_PER_CYCLE`) để bounded lượt gọi Gemini.
+
+Sự kiện Telegram khi nạp kèo: **"NHAN KEO MOI VAO XU LY: \<title\> | mode: … | ngan sach: …"** ngay khi đăng ký, và **"BAT DAU XU LY: \<title\>"** khi bắt đầu sinh đơn/sản phẩm — mỗi sự kiện chỉ gửi 1 lần (cờ `notified_registered` / `notified_started` trong state, gửi thành công mới đặt cờ).
+
+**Heartbeat STATUS**: `STATUS.md` luôn có dòng "Dang chay binh thuong - cap nhat HH:MM VN, tong keo dang theo doi: N, moi dang ky vong nay: M" và được commit lại **tối thiểu mỗi ~15 phút** (`DOER_HEARTBEAT_SEC`, mặc định 900) kể cả khi không có thay đổi — mở STATUS là biết hệ sống. (Vá kèm: `git push` phải dùng `HEAD:main` vì `actions/checkout` để repo ở detached HEAD — `git push` trần lỗi "not currently on a branch".)
 
 ## Máy trạng thái (quan trọng nhất)
 
@@ -44,7 +55,7 @@ Nhiều kèo **phải thắng/được chọn trước mới được làm** (ki
 
 ## Telegram — sự kiện riêng
 
-Kèo mới · đã nộp đơn (gửi thật hoặc "đã soạn, chờ PAT") · **ĐƯỢC CHỌN** · đã nộp bài · tiền về (`da_tra`, chỉ khi có bằng chứng).
+**NHAN KEO MOI VAO XU LY** (kèm mode + ngân sách, ngay khi đăng ký) · **BAT DAU XU LY** (khi bắt đầu sinh đơn/sản phẩm) · đã nộp đơn (gửi thật hoặc "đã soạn, chờ PAT") · **ĐƯỢC CHỌN** · đã nộp bài · tiền về (`da_tra`, chỉ khi có bằng chứng).
 
 ## Vận hành
 

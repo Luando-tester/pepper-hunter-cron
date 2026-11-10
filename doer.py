@@ -7,6 +7,14 @@ doc keo sach moi -> phan loai (type + mode) -> lam san pham bang Gemini
 -> commit vao repo. Job vong lap tu noi: moi 60s 1 vong, toi da ~330 phut,
 gan het gio thi tu workflow_dispatch chay run moi (gh CLI + GITHUB_TOKEN).
 
+INTAKE 2 NGUON: (1) Worker /latest (deals tick gan nhat + queue tich luy);
+(2) doer TU QUET GitHub Search cung bo truy van voi hunter - bat lai keo da
+troi khoi /latest (ban dau /latest chi giu 1 vong nen 9 keo dau tien bi ghi
+de truoc khi doer khoi dong). Dang ky moi -> Telegram "NHAN KEO MOI VAO XU
+LY"; bat dau sinh don/san pham -> "BAT DAU XU LY" (moi su kien 1 lan, co co
+trong state). STATUS.md co dong heartbeat va duoc commit lai toi thieu moi
+~15 phut (DOER_HEARTBEAT_SEC) ke ca khi khong co thay doi.
+
 MAY TRANG THAI (luan chot 18:01 10/11 - nhieu keo phai THANG/DUOC CHON truoc):
   mode=lam_ngay      : mo tu do -> lam san pham ngay (working) -> nop (submitted)
   mode=cho_duoc_chon : phai duoc giao viec truoc:
@@ -48,6 +56,28 @@ OUR_USERNAME = os.environ.get("OUR_USERNAME") or "Luando-tester"
 LOOP_BUDGET_MIN = float(os.environ.get("DOER_LOOP_BUDGET_MIN") or 330)
 POLL_SEC = int(os.environ.get("DOER_POLL_SEC") or 60)
 APPLIED_EXPIRE_DAYS = int(os.environ.get("APPLIED_EXPIRE_DAYS") or 30)
+HEARTBEAT_SEC = int(os.environ.get("DOER_HEARTBEAT_SEC") or 900)
+
+# --- Intake 2: doer TU QUET GitHub Search (cung bo truy van + cong sach voi
+# hunter.py / worker.js). Day la duong bat lai keo da troi khoi /latest
+# (Worker chi giu vong gan nhat; keo con mo tren san la bat lai duoc).
+SEARCH_QUERIES = [
+    "is:issue is:open label:bounty code",
+    'is:issue is:open label:bounty "AI agent"',
+    "is:issue is:open label:bounty writing",
+]
+MAX_PER_REPO = 2
+SEARCH_PER_PAGE = 15
+MAX_NEW_PER_CYCLE = 12
+BANNED = [
+    "shill", "spam", "fake engagement", "fake follower", "fake review",
+    "money mule", "mule account", "laundering", "gambling", "betting",
+    "casino", "captcha farm", "captcha solving", "airdrop farm",
+    "pump and dump", "paid retweet farm",
+    "generate gmv", "qualifying gmv", "fake volume", "wash trading", "wash trade",
+    "simulated volume", "bot traffic", "fake traffic",
+]
+
 IN_ACTIONS = os.environ.get("GITHUB_ACTIONS") == "true"
 DOER_ONCE = os.environ.get("DOER_ONCE") == "1"
 DOER_GIT = os.environ.get("DOER_GIT", "1" if IN_ACTIONS else "0") == "1"
@@ -211,6 +241,128 @@ def fetch_issue_comments(url):
     return [{"user": (c.get("user") or {}).get("login", ""),
              "association": c.get("author_association", ""),
              "body": (c.get("body") or "")[:1500]} for c in d]
+
+
+# ---------------------------------------------------------------- Cong sach + Intake 2
+def extract_budget(title):
+    """Trich ngan sach tu title (giong hunter.py). Khong co -> None. Cam bia so."""
+    if "credit" in (title or "").lower():
+        return None
+    m = re.search(r"\$\s?(\d[\d,]*(?:\.\d+)?)", title or "")
+    if m:
+        return float(m.group(1).replace(",", ""))
+    m = re.search(r"(\d[\d,]*(?:\.\d+)?)\s?(USDC|USDT|USD)\b", title or "", re.I)
+    if m:
+        return float(m.group(1).replace(",", ""))
+    return None
+
+
+def clean_gate(text):
+    low = (text or "").lower()
+    return [w for w in BANNED if w in low]
+
+
+def is_site_credit(text):
+    return "site credit" in (text or "").lower()
+
+
+def fetch_bounty_candidates():
+    """Intake 2: tu quet GitHub Search (label:bounty, 3 y dinh, cap 2/repo),
+    qua cong sach + bo qua site credit. Tra list {title, url, budget_usd, pack}
+    (pack = excerpt cua issue). Loi tung truy van chi log."""
+    items, seen_url, per_repo = [], set(), {}
+    for q in SEARCH_QUERIES:
+        path = ("/search/issues?q=%s&sort=created&order=desc&per_page=%d"
+                % (urllib.parse.quote(q), SEARCH_PER_PAGE))
+        st, data = gh_api("GET", path)
+        if st != 200 or not isinstance(data, dict):
+            # PAT fine-grained co the khong doc duoc search -> thu an danh
+            st2, raw = http_req("GET", "https://api.github.com" + path,
+                                {"User-Agent": "pepper-hunter-doer/1.0",
+                                 "Accept": "application/vnd.github+json"}, None, 40)
+            try:
+                data = json.loads(raw)
+            except Exception:
+                data = {}
+            if st2 != 200 or not isinstance(data, dict):
+                log("Intake2: GitHub search '%s' loi (HTTP %s/%s) - bo qua truy van nay" % (q, st, st2))
+                continue
+        for it in data.get("items", []):
+            if "pull_request" in it:
+                continue
+            html = it.get("html_url", "")
+            if not html or html in seen_url:
+                continue
+            title = (it.get("title") or "").strip()
+            if len(title) < 6:
+                continue
+            repo = ""
+            ru = it.get("repository_url", "")
+            if "/repos/" in ru:
+                repo = ru.split("/repos/", 1)[1]
+            if per_repo.get(repo, 0) >= MAX_PER_REPO:
+                continue
+            excerpt = re.sub(r"\s+", " ", it.get("body") or "")[:600]
+            text = title + " " + excerpt
+            hits = clean_gate(text)
+            if hits:
+                log("Intake2 LOAI BAN (%s): %s" % (", ".join(hits), title[:70]))
+                continue
+            if is_site_credit(text):
+                log("Intake2 bo qua site credit: %s" % title[:70])
+                continue
+            per_repo[repo] = per_repo.get(repo, 0) + 1
+            seen_url.add(html)
+            items.append({"title": title, "url": html,
+                          "budget_usd": extract_budget(title), "pack": excerpt})
+        log("Intake2 query '%s': tich luy %d ung vien sach" % (q, len(items)))
+    return items
+
+
+def notify_started(entry):
+    """Su kien Telegram: BAT DAU XU LY (gui 1 lan duy nhat, co co trong state)."""
+    if entry.get("notified_started"):
+        return
+    if telegram_send("[Pepper Hunter Doer] BAT DAU XU LY: %s\nLink: %s"
+                     % (entry["title"], entry["url"])):
+        entry["notified_started"] = True
+
+
+def register_deal(state, deal):
+    """Dang ky 1 keo (tu /latest hoac intake tu quet) vao state. Tra entry neu
+    dang ky moi, None neu da co. Gui Telegram su kien NHAN KEO ngay khi nhan."""
+    url = deal.get("url")
+    if not url or url in state:
+        return None
+    info = fetch_issue_info(url)
+    slug = make_slug(url, deal.get("title", ""))
+    entry = {"title": deal.get("title", ""), "url": url, "slug": slug,
+             "budget_usd": deal.get("budget_usd"), "pack": (deal.get("pack") or "")[:6000],
+             "status": "new", "created_at": now_iso(), "updated_at": now_iso(), "files": []}
+    if info and info.get("state") == "closed":
+        entry["status"] = "lost"
+        entry["note"] = "issue da dong truoc khi kip lam"
+    elif info and (info.get("assignees") or []):
+        if OUR_USERNAME in info["assignees"]:
+            entry["mode"] = "cho_duoc_chon"
+            entry["type"] = classify_type(entry["title"], entry["pack"])
+            entry["status"] = "assigned"
+            entry["note"] = "da duoc assign san cho " + OUR_USERNAME
+        else:
+            entry["status"] = "lost"
+            entry["note"] = "da co nguoi nhan: " + ", ".join(info["assignees"])
+    else:
+        entry["type"] = classify_type(entry["title"], entry["pack"])
+        entry["mode"], entry["mode_reason"] = classify_mode(entry["title"], entry["pack"], info)
+    state[url] = entry
+    if entry["status"] in ("new", "assigned"):
+        budget_txt = ("$" + str(entry["budget_usd"])) if entry.get("budget_usd") else "chua ghi"
+        if telegram_send("[Pepper Hunter Doer] NHAN KEO MOI VAO XU LY: %s | mode: %s | ngan sach: %s\nLink: %s"
+                         % (entry["title"], entry.get("mode", "?"), budget_txt, url)):
+            entry["notified_registered"] = True
+        log("Da dang ky keo (%s/%s/%s): %s"
+            % (entry["status"], entry.get("mode", "?"), entry.get("type", "?"), entry["title"][:70]))
+    return entry
 
 
 # ---------------------------------------------------------------- Gemini pool
@@ -412,6 +564,7 @@ def save_state(state):
 # ---------------------------------------------------------------- Hanh dong chinh
 def make_apply(entry, pool, pool_state, info):
     """Sinh APPLY.md (don xin nhan viec). Co PAT thi gui comment that ngay."""
+    notify_started(entry)
     deal = {"title": entry["title"], "url": entry["url"], "budget_usd": entry.get("budget_usd"),
             "pack": entry.get("pack", "")}
     if pool:
@@ -453,6 +606,7 @@ def make_apply(entry, pool, pool_state, info):
 
 def make_product(entry, pool, pool_state, info):
     """Lam SAN PHAM that cho keo (chi goi khi lam_ngay hoac da assigned)."""
+    notify_started(entry)
     deal = {"title": entry["title"], "url": entry["url"], "budget_usd": entry.get("budget_usd"),
             "pack": entry.get("pack", "")}
     typ = entry["type"]
@@ -614,13 +768,15 @@ def check_submitted(entry):
 
 
 # ---------------------------------------------------------------- STATUS + git
-def write_status(state, latest_ts):
+def write_status(state, latest_ts, registered_this_cycle=0):
     counts = {}
     for e in state.values():
         counts[e.get("status", "?")] = counts.get(e.get("status", "?"), 0) + 1
     vn = datetime.now(timezone.utc) + timedelta(hours=7)
     lines = ["# Pepper Hunter Doer - STATUS",
              "",
+             "Dang chay binh thuong - cap nhat %s VN, tong keo dang theo doi: %d, moi dang ky vong nay: %d"
+             % (vn.strftime("%H:%M"), len(state), registered_this_cycle),
              "Cap nhat: %s (VN) / %s (UTC)" % (vn.strftime("%Y-%m-%d %H:%M:%S"),
                                                datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")),
              "Worker /latest ts: %s" % (latest_ts or "chua co"),
@@ -668,7 +824,9 @@ def git_commit_push(msg):
             return
         run(["git", "-c", "user.name=Pepper Hunter Doer", "-c", "user.email=doer@pepperresearch",
              "commit", "-m", msg])
-        r = run(["git", "push"])
+        # actions/checkout de repo o detached HEAD -> phai push HEAD:main tuong minh,
+        # "git push" tran se loi "not currently on a branch" va mat commit am tham.
+        r = run(["git", "push", "origin", "HEAD:main"])
         if r.returncode != 0:
             log("git push loi: %s" % (r.stderr or "")[:200])
         else:
@@ -696,46 +854,58 @@ def self_dispatch():
 
 # ---------------------------------------------------------------- Vong lap
 def process_cycle(state, pool, pool_state):
-    st, latest = http_json("GET", WORKER_URL + "/latest", timeout=40)
-    if st != 200 or not isinstance(latest, dict):
-        log("Doc /latest loi (HTTP %s) - bo qua vong nay" % st)
-        return None
-    deals = latest.get("deals") or []
-    log("Vong moi: /latest ts=%s, %d keo sach moi trong bao cao" % (latest.get("ts"), len(deals)))
+    """1 vong: dang ky keo moi tu 2 nguon intake roi chay may trang thai.
+    Tra dict {latest_ts, new_registered, changed} - main quyet dinh commit/heartbeat."""
+    changed = False
+    new_registered = 0
+    latest_ts = None
 
-    for deal in deals:
-        url = deal.get("url")
-        if not url or url in state:
-            continue
-        info = fetch_issue_info(url)
-        slug = make_slug(url, deal.get("title", ""))
-        entry = {"title": deal.get("title", ""), "url": url, "slug": slug,
-                 "budget_usd": deal.get("budget_usd"), "pack": (deal.get("pack") or "")[:6000],
-                 "status": "new", "created_at": now_iso(), "updated_at": now_iso(), "files": []}
-        if info and info.get("state") == "closed":
-            entry["status"] = "lost"
-            entry["note"] = "issue da dong truoc khi kip lam"
-        elif info and (info.get("assignees") or []):
-            if OUR_USERNAME in info["assignees"]:
-                entry["mode"] = "cho_duoc_chon"
-                entry["type"] = classify_type(entry["title"], entry["pack"])
-                entry["status"] = "assigned"
-                entry["note"] = "da duoc assign san cho " + OUR_USERNAME
-            else:
-                entry["status"] = "lost"
-                entry["note"] = "da co nguoi nhan: " + ", ".join(info["assignees"])
-        else:
-            entry["type"] = classify_type(entry["title"], entry["pack"])
-            entry["mode"], entry["mode_reason"] = classify_mode(entry["title"], entry["pack"], info)
-        state[url] = entry
-        if entry["status"] in ("new", "assigned"):
-            telegram_send("[Pepper Hunter Doer] KEO MOI\n%s\nLink: %s\nNgan sach: %s\nMode: %s - loai: %s"
-                          % (entry["title"], url,
-                             ("$" + str(entry["budget_usd"])) if entry.get("budget_usd") else "chua ghi",
-                             entry.get("mode", "?"), entry.get("type", "?")))
+    # --- Intake 1: Worker /latest (deals cua tick gan nhat + queue tich luy)
+    # PHAI gui User-Agent rieng: Cloudflare chan UA mac dinh "Python-urllib"
+    # (HTTP 403) - day la loi goc khien ban doer cu chet im lang o buoc nay:
+    # no return som, bo qua ca vong gom ca ghi STATUS + commit.
+    st, latest = http_json("GET", WORKER_URL + "/latest",
+                           {"User-Agent": "pepper-hunter-doer/1.0"}, timeout=40)
+    if st == 200 and isinstance(latest, dict):
+        latest_ts = latest.get("ts")
+        deals = list(latest.get("deals") or []) + list(latest.get("queue") or [])
+        log("Vong moi: /latest ts=%s, %d keo trong bao cao (deals+queue)"
+            % (latest_ts, len(deals)))
+        seen_now = set()
+        for deal in deals:
+            url = deal.get("url")
+            if not url or url in state or url in seen_now:
+                continue
+            seen_now.add(url)
+            if new_registered >= MAX_NEW_PER_CYCLE:
+                break
+            if register_deal(state, deal) is not None:
+                new_registered += 1
+                changed = True
+    else:
+        log("Doc /latest loi (HTTP %s) - van chay intake tu quet" % st)
 
+    # --- Intake 2: tu quet GitHub Search (bat lai keo da troi khoi /latest)
+    try:
+        candidates = fetch_bounty_candidates()
+    except Exception as e:
+        log("Intake2 loi: %s" % e)
+        candidates = []
+    fresh = [c for c in candidates if c["url"] not in state]
+    log("Intake2: %d ung vien sach, %d chua dang ky" % (len(candidates), len(fresh)))
+    for deal in fresh:
+        if new_registered >= MAX_NEW_PER_CYCLE:
+            log("Da dat tran %d dang ky moi/vong - phan con lai de vong sau" % MAX_NEW_PER_CYCLE)
+            break
+        if register_deal(state, deal) is not None:
+            new_registered += 1
+            changed = True
+
+    # --- May trang thai
     for url, entry in list(state.items()):
         status = entry.get("status")
+        before = json.dumps({k: v for k, v in entry.items() if k != "updated_at"},
+                            sort_keys=True, ensure_ascii=False, default=str)
         try:
             if status == "new" and entry.get("mode") == "cho_duoc_chon":
                 make_apply(entry, pool, pool_state, fetch_issue_info(url))
@@ -757,7 +927,7 @@ def process_cycle(state, pool, pool_state):
             elif status == "working":
                 if (os.environ.get("GITHUB_PAT") or "").strip():
                     submit_github(entry)
-                else:
+                elif entry.get("note") != "san pham da xong - CHO PAT de nop PR":
                     entry["note"] = "san pham da xong - CHO PAT de nop PR"
             elif status == "submitted":
                 check_submitted(entry)
@@ -766,13 +936,14 @@ def process_cycle(state, pool, pool_state):
                 entry["paid_notified"] = True
         except Exception as e:
             log("Loi xu ly keo %s: %s" % (url, e))
-        entry["updated_at"] = now_iso()
+        after = json.dumps({k: v for k, v in entry.items() if k != "updated_at"},
+                           sort_keys=True, ensure_ascii=False, default=str)
+        if after != before:
+            entry["updated_at"] = now_iso()
+            changed = True
 
     save_state(state)
-    write_status(state, latest.get("ts"))
-    git_commit_push("doer: vong %s - %d keo dang theo doi"
-                    % (datetime.now(timezone.utc).strftime("%H:%M"), len(state)))
-    return latest.get("ts")
+    return {"latest_ts": latest_ts, "new_registered": new_registered, "changed": changed}
 
 
 def main():
@@ -792,8 +963,16 @@ def main():
     pool_state = {"dead": set(), "gone": {}}
     start = time.monotonic()
     budget_sec = LOOP_BUDGET_MIN * 60
+    last_commit = 0.0  # monotonic cua lan commit+push gan nhat (heartbeat)
     while True:
-        process_cycle(state, pool, pool_state)
+        res = process_cycle(state, pool, pool_state)
+        heartbeat_due = (time.monotonic() - last_commit) >= HEARTBEAT_SEC
+        if res["changed"] or heartbeat_due or DOER_ONCE:
+            write_status(state, res["latest_ts"], res["new_registered"])
+            git_commit_push("doer: vong %s - %d keo dang theo doi, moi dang ky %d"
+                            % (datetime.now(timezone.utc).strftime("%H:%M"),
+                               len(state), res["new_registered"]))
+            last_commit = time.monotonic()
         if DOER_ONCE:
             log("DOER_ONCE=1 - thoat sau 1 vong")
             return 0

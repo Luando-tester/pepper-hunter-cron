@@ -8,7 +8,9 @@
 //   TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID
 // Routes: GET / -> trang thai; GET /run -> chay 1 vong ngay va tra JSON bao cao;
 //   GET /latest -> JSON vong chay gan nhat (KV "run:last"): keo SACH moi + pack,
-//   cho tang TU LAM (doer) phia Muse doc va tu lam san pham.
+//   kem "queue": HANG DOI TICH LUY (KV "queue", cap 100, dedupe theo url) chua
+//   moi keo sach tung thay - cho tang TU LAM (doer) doc va tu lam san pham
+//   (run:last chi giu 1 vong nen queue la noi bat lai keo da troi).
 
 const GEMINI_MODELS = ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"];
 const SEARCH_QUERIES = [
@@ -307,6 +309,32 @@ async function runHunt(env) {
       else report.errors.push("Telegram loi (" + it.title.slice(0, 40) + "): " + sent.error);
     }
   }
+  // Hang doi TICH LUY cho doer: APPEND keo sach moi vao KV "queue"
+  // (dedupe theo url, cap 100, giu moi nhat). run:last chi giu 1 vong nen
+  // tung lam troi keo khi doer chua kip doc - queue la noi doer bat lai.
+  let queue = [];
+  try {
+    const rawQ = await env.SEEN.get("queue");
+    if (rawQ) {
+      const parsed = JSON.parse(rawQ);
+      if (Array.isArray(parsed)) queue = parsed;
+    }
+  } catch (e) { queue = []; }
+  const qUrls = new Set(queue.map((d) => d.url));
+  for (const d of cleanDeals) {
+    if (!qUrls.has(d.url)) {
+      queue.push({ title: d.title, url: d.url, budget_usd: d.budget_usd, pack_mode: d.pack_mode, pack: d.pack, ts: report.at });
+      qUrls.add(d.url);
+    }
+  }
+  if (queue.length > 100) queue = queue.slice(queue.length - 100);
+  try {
+    await env.SEEN.put("queue", JSON.stringify(queue));
+  } catch (e) {
+    log("LOI ghi KV queue: " + e.message);
+    report.errors.push("ghi KV queue loi: " + e.message);
+  }
+  report.queue_size = queue.length;
   // Luu vong chay gan nhat vao KV cho tang TU LAM (doer) doc qua GET /latest.
   try {
     await env.SEEN.put("run:last", JSON.stringify({
@@ -331,11 +359,22 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     if (url.pathname === "/latest") {
-      let raw = null;
+      let last = { ts: null, deals: [] };
+      let queue = [];
       if (env.SEEN) {
-        try { raw = await env.SEEN.get("run:last"); } catch (e) { /* tra mac dinh */ }
+        try {
+          const raw = await env.SEEN.get("run:last");
+          if (raw) last = JSON.parse(raw);
+        } catch (e) { /* tra mac dinh */ }
+        try {
+          const rawQ = await env.SEEN.get("queue");
+          if (rawQ) {
+            const parsed = JSON.parse(rawQ);
+            if (Array.isArray(parsed)) queue = parsed;
+          }
+        } catch (e) { /* queue rong */ }
       }
-      return new Response(raw || JSON.stringify({ ts: null, deals: [] }),
+      return new Response(JSON.stringify({ ...last, queue }),
         { headers: { "Content-Type": "application/json; charset=utf-8" } });
     }
     if (url.pathname === "/run") {

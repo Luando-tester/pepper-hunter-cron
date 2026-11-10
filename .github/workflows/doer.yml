@@ -10,8 +10,8 @@
 #
 # Secrets can dat o repo (Settings > Secrets and variables > Actions):
 #   GEMINI_API_KEYS     pool key Gemini cua Luân (toi da 10)
-#   TELEGRAM_BOT_TOKEN  bot @Pepperhunter12_bot
-#   TELEGRAM_CHAT_ID    group -5598436435
+#   TELEGRAM_BOT_TOKEN  token bot Telegram cua he (gia tri chi trong secret)
+#   TELEGRAM_CHAT_ID    id group Telegram nhan thong bao (gia tri chi trong secret)
 #   GITHUB_PAT          PAT cua Luando-tester de gui comment xin viec + mo PR
 #                       (thieu PAT: doer chi soan don/san pham, khong gui/nop)
 name: Pepper Hunter Doer
