@@ -1,12 +1,12 @@
 # Pepper Hunter Doer - STATUS
 
-Dang chay binh thuong - cap nhat 20:32 VN, tong keo dang theo doi: 17, moi dang ky vong nay: 0, loi da cach ly vong nay: 0
-Cap nhat: 2026-11-10 20:32:52 (VN) / 2026-11-10 13:32:52 (UTC)
-Worker /latest ts: 2026-11-10T13:32:03.918Z
+Dang chay binh thuong - cap nhat 20:39 VN, tong keo dang theo doi: 17, moi dang ky vong nay: 0, loi da cach ly vong nay: 0
+Cap nhat: 2026-11-10 20:39:46 (VN) / 2026-11-10 13:39:46 (UTC)
+Worker /latest ts: 2026-11-10T13:39:04.289Z
 Tong keo da theo doi: 17
-Trang thai: applied=12, lost=1, pipeline-test=1, skipped_trap=2, submitted=1
+Trang thai: applied=11, lost=2, pipeline-test=1, skipped_trap=2, submitted=1
 
-## Dang cho duoc chon (da nop don) (12)
+## Dang cho duoc chon (da nop don) (11)
 
 - [[Challenge] Independently review the release-signing design and the ceremony invite](https://github.com/Conxian/conxius-enclave-sdk/issues/726) - cho_duoc_chon/code - chua ghi ngan sach - don: da gui
 - [Specify scoped build-bounty rules, alpha funding and governance](https://github.com/ditto-assistant/ditto-subnet/issues/2044) - cho_duoc_chon/code - chua ghi ngan sach - don: da gui
@@ -19,14 +19,14 @@ Trang thai: applied=12, lost=1, pipeline-test=1, skipped_trap=2, submitted=1
 - [[Bounty] [Bounty $450] refactor(validator): extract checkpoint divisor constant in src/le](https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4258) - cho_duoc_chon/code - $450.0 - don: da gui
 - [[QA Bounty] [P0] Model Routing & Failover](https://github.com/hanzoai/ai/issues/137) - cho_duoc_chon/code - chua ghi ngan sach - don: da gui
 - [[QA Bounty] [P0] Cross-Model API Compatibility](https://github.com/hanzoai/ai/issues/138) - cho_duoc_chon/code - chua ghi ngan sach - don: da gui
-- [[Challenge] Capability manifest never advertises a non-routable adapter as supported](https://github.com/Conxian/conxian-gateway/issues/828) - cho_duoc_chon/code - chua ghi ngan sach - don: da gui
 
 ## Da nop - cho duyet/merge (1)
 
 - [test issue](https://github.com/Zimb/zimb/issues/1) - lam_ngay/code - chua ghi ngan sach - PR: https://github.com/Zimb/zimb/pull/13
 
-## Thua / da co nguoi nhan / issue dong (1)
+## Thua / da co nguoi nhan / issue dong (2)
 
+- [[Challenge] Capability manifest never advertises a non-routable adapter as supported](https://github.com/Conxian/conxian-gateway/issues/828) - cho_duoc_chon/code - chua ghi ngan sach
 - [[Challenge] Recompute the release-ceremony countdown from public evidence](https://github.com/Conxian/conxius-enclave-sdk/issues/721) - cho_duoc_chon/code - chua ghi ngan sach
 
 ## Bo qua - repo bay bot (khong dang ky, khong gui don) (2)
