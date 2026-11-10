@@ -246,5 +246,63 @@
   "apply_mode": "gemini (key #1, gemini-3.5-flash-lite)",
   "applied_at": "2026-11-10T12:15:42.436957+00:00",
   "apply_sent": false
+ },
+ "https://github.com/ditto-assistant/ditto-subnet/issues/2046": {
+  "title": "Implement bounty acceptance, alpha awards, fee refunds and accounting",
+  "url": "https://github.com/ditto-assistant/ditto-subnet/issues/2046",
+  "slug": "ditto-assistant-ditto-subnet-2046",
+  "budget_usd": null,
+  "pack": "> **Implementation consolidated:** the complete v1 implementation is now tracked in [#2942](https://github.com/ditto-assistant/ditto-subnet/issues/2942), which depends on [PR #2889](https://github.com/ditto-assistant/ditto-subnet/pull/2889). This issue preserves detailed reference/coordination notes; do not assign a separate parallel implementation of this scope. ## Outcome Record human acceptance, awards and fee refunds for scoped build bounties, then reconcile manually approved transfers. Team acceptance earns payment; deployment is tracked separately. ## Required behavior - Record exact sub",
+  "status": "applied",
+  "created_at": "2026-11-10T12:16:45.705376+00:00",
+  "updated_at": "2026-11-10T12:17:05.448805+00:00",
+  "files": [
+   "deliverables/ditto-assistant-ditto-subnet-2046/APPLY.md"
+  ],
+  "type": "code",
+  "mode": "cho_duoc_chon",
+  "mode_reason": "khong ro dau hieu mo tu do -> mac dinh cho duoc chon (an toan)",
+  "apply_mode": "gemini (key #1, gemini-3.5-flash)",
+  "applied_at": "2026-11-10T12:17:05.448750+00:00",
+  "apply_sent": false
+ },
+ "https://github.com/ditto-assistant/ditto-subnet/issues/2044": {
+  "title": "Specify scoped build-bounty rules, alpha funding and governance",
+  "url": "https://github.com/ditto-assistant/ditto-subnet/issues/2044",
+  "slug": "ditto-assistant-ditto-subnet-2044",
+  "budget_usd": null,
+  "pack": "## Outcome Publish the program rules, funding and custody contract for scoped build bounties in #2054. The historical 5% maintenance allocation remains a proposal; this issue does not approve a live allocation or an emissions change. ## Agreed v1 rules (2026-10-15) - Team-defined open-source build tasks; a published bounty revision fixes scope, public interfaces, acceptance evidence, named reviewer, alpha reward pool, entry fee, three-slot limit, and delivery window. - Three attempts per round; one slot per verified contributor/payee. Each paid claim gets its own deadline (default five days). ",
+  "status": "applied",
+  "created_at": "2026-11-10T12:16:45.958567+00:00",
+  "updated_at": "2026-11-10T12:17:12.963021+00:00",
+  "files": [
+   "deliverables/ditto-assistant-ditto-subnet-2044/APPLY.md"
+  ],
+  "type": "code",
+  "mode": "cho_duoc_chon",
+  "mode_reason": "khong ro dau hieu mo tu do -> mac dinh cho duoc chon (an toan)",
+  "apply_mode": "gemini (key #1, gemini-3.5-flash-lite)",
+  "applied_at": "2026-11-10T12:17:12.962972+00:00",
+  "apply_sent": false
+ },
+ "https://github.com/Zimb/zimb/issues/1": {
+  "title": "test issue",
+  "url": "https://github.com/Zimb/zimb/issues/1",
+  "slug": "Zimb-zimb-1",
+  "budget_usd": null,
+  "pack": "## 🎯 Problem test issue --- ## 🧪 Hypotheses already ruled out _To be filled by the requester — copy/paste any debug steps already tried._ --- ## 🔍 Root node / pinpoint _Describe the smallest unit that still misbehaves (function, route, line, …)._ --- ## 🛠️ Stack - **Repo**: [Zimb/zimb](https://github.com/Zimb/zimb) - **Languages**: .ts, .js, .mjs --- ## 🟢 Claim this bounty If you're a senior and want to take this ticket, **comment on this issue** with: ``` @zimb-bot claim ``` The bot will (1) assign this issue to you, (2) grant you `push` access on the repo `Zimb/zimb`. First come, first serve",
+  "status": "working",
+  "created_at": "2026-11-10T12:16:46.163849+00:00",
+  "updated_at": "2026-11-10T12:17:21.328744+00:00",
+  "files": [
+   "deliverables/Zimb-zimb-1/SOLUTION.md",
+   "deliverables/Zimb-zimb-1/src/test.ts",
+   "deliverables/Zimb-zimb-1/test/test.test.ts"
+  ],
+  "type": "code",
+  "mode": "lam_ngay",
+  "mode_reason": "issue ghi ro mo tu do: 'first come'",
+  "product_mode": "gemini (key #1, gemini-3.5-flash-lite) | gemini (key #2, gemini-3.5-flash-lite)",
+  "product_at": "2026-11-10T12:17:21.328675+00:00"
  }
 }
