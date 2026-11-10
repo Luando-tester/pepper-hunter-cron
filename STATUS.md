@@ -1,13 +1,14 @@
 # Pepper Hunter Doer - STATUS
 
-Dang chay binh thuong - cap nhat 03:05 VN, tong keo dang theo doi: 21, moi dang ky vong nay: 4, loi da cach ly vong nay: 0
-Cap nhat: 2026-11-11 03:05:05 (VN) / 2026-11-10 20:05:05 (UTC)
-Worker /latest ts: 2026-11-10T20:04:04.082Z
-Tong keo da theo doi: 21
-Trang thai: applied=14, lost=3, pipeline-test=1, skipped_trap=2, submitted=1
+Dang chay binh thuong - cap nhat 03:06 VN, tong keo dang theo doi: 22, moi dang ky vong nay: 1, loi da cach ly vong nay: 0
+Cap nhat: 2026-11-11 03:06:26 (VN) / 2026-11-10 20:06:26 (UTC)
+Worker /latest ts: 2026-11-10T20:06:03.892Z
+Tong keo da theo doi: 22
+Trang thai: applied=15, lost=3, pipeline-test=1, skipped_trap=2, submitted=1
 
-## Dang cho duoc chon (da nop don) (14)
+## Dang cho duoc chon (da nop don) (15)
 
+- [[Bounty] [Bounty $1,400] perf(dex): optimize constant-product AMM swap fee math in src/qu](https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4273) - cho_duoc_chon/code - $1400.0 - don: da gui
 - [[Bounty] [Bounty $1,150] perf(automation): share static canvas seed and batch nonce acros](https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4272) - cho_duoc_chon/code - $1150.0 - don: da gui
 - [[Bounty] EKEODKDE9DKE9DO BOUNTY](https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/1602) - cho_duoc_chon/code - chua ghi ngan sach - don: da gui
 - [[Bounty] [Bounty $1,000] FP32 ttnn.cumsum returns NaN after infinity or overflow](https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/1728) - cho_duoc_chon/khac - $1000 - don: da gui

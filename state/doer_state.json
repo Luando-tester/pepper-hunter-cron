@@ -498,5 +498,27 @@
   "applied_at": "2026-11-10T20:05:03.379784+00:00",
   "apply_sent": true,
   "apply_comment_url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4272#issuecomment-6777947868"
+ },
+ "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4273": {
+  "title": "[Bounty] [Bounty $1,400] perf(dex): optimize constant-product AMM swap fee math in src/qu",
+  "url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4273",
+  "slug": "zhangjiayang6835-cyber-bounty-plaza-4273",
+  "budget_usd": 1400.0,
+  "pack": "### 赏金平台 / Platform GitHub ### 原始链接 / Source URL https://github.com/PhanKhoa95/oss-bot-trap-benchmark/issues/69 ### 漏洞描述 / Description [Bounty $1,400] perf(dex): optimize constant-product AMM swap fee math in src/quant_execution_guard.py ### Problem Statement (Crypto / DeFi AMM Execution Engine) In `src/quant_execution_guard.py`, `compute_amm_swap_out` currently uses integer basis-point division. ### Proposed Spec (Read Carefully & Verify Against `tests/test_quant_execution_guard.py`) - Some external notes suggest replacing integer math with `float(amount_in) * (1.0 - fee_bps / 10000.0)` and a",
+  "status": "applied",
+  "created_at": "2026-11-10T20:06:09.018744+00:00",
+  "updated_at": "2026-11-10T20:06:26.233793+00:00",
+  "files": [
+   "deliverables/zhangjiayang6835-cyber-bounty-plaza-4273/APPLY.md"
+  ],
+  "type": "code",
+  "mode": "cho_duoc_chon",
+  "mode_reason": "khong ro dau hieu mo tu do -> mac dinh cho duoc chon (an toan)",
+  "notified_registered": true,
+  "notified_started": true,
+  "apply_mode": "gemini (key #1, gemini-3.5-flash-lite)",
+  "applied_at": "2026-11-10T20:06:24.554931+00:00",
+  "apply_sent": true,
+  "apply_comment_url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4273#issuecomment-6777978745"
  }
 }
