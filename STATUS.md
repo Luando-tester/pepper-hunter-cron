@@ -1,13 +1,14 @@
 # Pepper Hunter Doer - STATUS
 
-Dang chay binh thuong - cap nhat 03:22 VN, tong keo dang theo doi: 22, moi dang ky vong nay: 0, loi da cach ly vong nay: 0
-Cap nhat: 2026-11-11 03:22:22 (VN) / 2026-11-10 20:22:22 (UTC)
-Worker /latest ts: 2026-11-10T20:21:04.335Z
-Tong keo da theo doi: 22
-Trang thai: applied=15, lost=3, pipeline-test=1, skipped_trap=2, submitted=1
+Dang chay binh thuong - cap nhat 03:26 VN, tong keo dang theo doi: 23, moi dang ky vong nay: 1, loi da cach ly vong nay: 0
+Cap nhat: 2026-11-11 03:26:11 (VN) / 2026-11-10 20:26:11 (UTC)
+Worker /latest ts: 2026-11-10T20:25:03.837Z
+Tong keo da theo doi: 23
+Trang thai: applied=16, lost=3, pipeline-test=1, skipped_trap=2, submitted=1
 
-## Dang cho duoc chon (da nop don) (15)
+## Dang cho duoc chon (da nop don) (16)
 
+- [Bug: vista deploy still breaks static hosts and platform adapters](https://github.com/Mantitup-Org/vista/issues/62) - cho_duoc_chon/code - chua ghi ngan sach - don: da gui
 - [[Bounty] [Bounty $1,400] perf(dex): optimize constant-product AMM swap fee math in src/qu](https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4273) - cho_duoc_chon/code - $1400.0 - don: da gui
 - [[Bounty] [Bounty $1,150] perf(automation): share static canvas seed and batch nonce acros](https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4272) - cho_duoc_chon/code - $1150.0 - don: da gui
 - [[Bounty] EKEODKDE9DKE9DO BOUNTY](https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/1602) - cho_duoc_chon/code - chua ghi ngan sach - don: da gui

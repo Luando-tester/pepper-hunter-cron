@@ -520,5 +520,27 @@
   "applied_at": "2026-11-10T20:06:24.554931+00:00",
   "apply_sent": true,
   "apply_comment_url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4273#issuecomment-6777978745"
+ },
+ "https://github.com/Mantitup-Org/vista/issues/62": {
+  "title": "Bug: vista deploy still breaks static hosts and platform adapters",
+  "url": "https://github.com/Mantitup-Org/vista/issues/62",
+  "slug": "Mantitup-Org-vista-62",
+  "budget_usd": null,
+  "pack": "# Work pack (Gemini soan)\n\n- Keo: Bug: vista deploy still breaks static hosts and platform adapters\n- Link: https://github.com/Mantitup-Org/vista/issues/62\n\n---\n\nChào bạn, dưới đây là **Work Pack** chuẩn bị cho kèo GitHub Bounty trên repo `Mantitup-Org/vista` (Issue #62).\n\n---\n\n### 1. Tóm tắt yêu cầu (Goal & Scope)\n* **Mục tiêu:** Sửa dứt điểm các lỗi deploy còn sót lại trong lệnh `vista deploy` và trang docs site.\n* **Nguyên nhân gốc:** `create-vista-app` đã bỏ việc copy file cấu hình (`Dockerfile`, `render.yaml`, `deploy/`). Toàn bộ file deploy/platform phải do **engine** (`vista deploy`) sinh ra tự động. Đường dẫn này hiện đang bị lỗi trên một số nền tảng.\n* **Các lỗi cần xử lý chính:**\n  * **Cloudflare Pages (static):** Lỗi rewrite `/rsc/*` (Flight fetches bị biến thành HTML thay vì `.rsc` do xung đột `_redirects`). Gây lỗi client nav hoặc sai payload hydrate.\n  * **PPR shells:** Xử lý các vấn đề liên quan đến Partial Prerendering.\n\n---\n\n### 2. Kế hoạch từng bước & Cách tự kiểm tra (Step-by-step & Testing)\n\n* **Bước 1: Reproduce & Setup**\n  * Clone repo, checkout bản `main` (sau PR #60) hoặc cài `@vistagenic/vista@latest`.\n  * Dựng test app bằng `create-vista-app`.\n* **Bước 2: Fix Cloudflare Pages (Static)**\n  * Kiểm tra logic generate file `_redirects` hoặc `_headers` trong `vista deploy` cho Cloudflare.\n  * Đảm bảo request tới `/rsc/*` giữ nguyên định dạng `.rsc`, không bị catch-all rewrite thành `index.html`.\n* **Bước 3: Fix PPR shells & Platform adapters khác (nếu có)**\n  * Kiểm tra output sinh ra cho các host tĩnh/platform adapters.\n* **Bước 4: Tự kiểm tra (Self-Check)**\n  * Chạy `vista deploy` giả lập hoặc deploy thử lên Cloudflare Pages cá nhân.\n  * Test luồng Client-side Navigation (`/rsc/*` fetch thành công, không reload mất trạng thái).\n  * Chạy test suite hiện tại của repo (`npm test` hoặc tương đương) không bị regression.\n\n---\n\n### 3. Khung Deliverable (Bàn giao)\n* **Pull Request (PR):** \n  * 1 PR sạch sẽ trỏ vào `main` của `Mantitup-Org/vista`.\n  * Commit message rõ ràng (conventional commits).\n* **Test cases:** Bổ sung unit/integration test cho phần generate config của Cloudflare Pages nếu cần.\n* **Documentation/Notes:** Mô tả ngắn gọn cách fix trong phần description của PR để maintainer dễ review.\n\n---\n\n### 4. Điểm chưa rõ & Mẫu câu hỏi ngân sách (BẮT BUỘC HỎI TRƯỚC KHI LÀM)\n\n* **Vấn đề:** Tiêu đề Issue chưa ghi ngân sách (CHUA GHI). Bạn cần comment trực tiếp lên Issue để làm rõ về tiền thưởng, phương thức thanh toán và tiêu chí nghiệm thu trước khi bắt tay viết code.\n\n* **Mẫu comment tiếng Anh (Copy & paste):**\n> Hi @Mantitup-Org team,\n> \n> I'm ready to pick up this issue and fix the deployment bugs. However, I noticed that the budget/bounty amount has not been specified in the title or description yet. \n> \n> Could you please clarify:\n> 1. What is the allocated bounty amount for this task?\n> 2. What is the payment method (e.g., Polar, Open Collective, crypto, bank transfer)?\n> 3. What are the exact acceptance criteria for this PR to be considered complete?\n> \n> Once confirmed, I will start working on the fix immediately. Thank you!",
+  "status": "applied",
+  "created_at": "2026-11-10T20:25:50.957568+00:00",
+  "updated_at": "2026-11-10T20:26:11.160253+00:00",
+  "files": [
+   "deliverables/Mantitup-Org-vista-62/APPLY.md"
+  ],
+  "type": "code",
+  "mode": "cho_duoc_chon",
+  "mode_reason": "issue da co nhieu comment (21) - nghi nhieu nguoi xin nhan",
+  "notified_registered": true,
+  "notified_started": true,
+  "apply_mode": "gemini (key #1, gemini-3.5-flash-lite)",
+  "applied_at": "2026-11-10T20:26:09.084566+00:00",
+  "apply_sent": true,
+  "apply_comment_url": "https://github.com/Mantitup-Org/vista/issues/62#issuecomment-6778409267"
  }
 }
