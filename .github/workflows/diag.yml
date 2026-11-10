@@ -1,0 +1,21 @@
+name: Diag Pepper Hunter (tam - xoa sau khi chan doan)
+on:
+  workflow_dispatch:
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Kiem tra bien moi truong (chi do dai, khong in gia tri)
+        env:
+          GEMINI_API_KEYS: ${{ secrets.GEMINI_API_KEYS }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          GITHUB_PAT: ${{ secrets.GITHUB_PAT }}
+        run: |
+          for v in GEMINI_API_KEYS TELEGRAM_BOT_TOKEN TELEGRAM_CHAT_ID GITHUB_PAT; do
+            echo "$v length=${#v}"
+          done
+          echo "--- telegram getChat tu runner (chi HTTP + ok):"
+          curl -s -o /tmp/tg.json -w "HTTP %{http_code}\n" -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getChat" -d "chat_id=${TELEGRAM_CHAT_ID}" || echo "curl loi"
+          python3 -c "import json; d=json.load(open('/tmp/tg.json')); print('telegram ok =', d.get('ok'), '| type =', (d.get('result') or {}).get('type'))" || echo "khong doc duoc json"
