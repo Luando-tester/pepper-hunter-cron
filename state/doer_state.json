@@ -392,9 +392,9 @@
   "slug": "Conxian-conxius-enclave-sdk-726",
   "budget_usd": null,
   "pack": "# Work pack (Gemini soan)\n\n- Keo: [Challenge] Independently review the release-signing design and the ceremony invite\n- Link: https://github.com/Conxian/conxius-enclave-sdk/issues/726\n\n---\n\nChào bạn, đây là **Work Pack** chuẩn bị sẵn sàng cho bạn (freelancer) để \"săn\" kèo GitHub bounty này một cách chuyên nghiệp và an toàn nhất.\n\n---\n\n### 1. Tóm tắt yêu cầu (Scope of Work)\n* **Mục tiêu:** Review độc lập (adversarial review) toàn bộ thiết kế ký phát hành (release-signing design) và quy trình buổi lễ (ceremony invite) của repo `Conxian/conxius-enclave-sdk` (Issue #726).\n* **Phạm vi kiểm tra:**\n  1. `docs/operations/THRESHOLD_DKG_CEREMONY.md` (Quy trình DKG & cổng kiểm toán).\n  2. `docs/architecture/THRESHOLD_ATTESTATION_DESIGN.md` (Schema chứng thực ngưỡng - threshold attestation).\n  3. `docs/operations/JOIN_THE_CEREMONY.md` (Thư mời tham gia lễ #719).\n  4. Đường dẫn ký phát hành có giá trị thực (value-bearing signing path).\n* **Claim cần test:** Thiết kế 2-of-3 FROST ceremony, schema chứng thực và thư mời hoàn toàn chính xác, an toàn, không có lỗ hổng logic hay tính trung thực.\n\n---\n\n### 2. Kế hoạch từng bước & Cách tự kiểm tra (Step-by-step & Self-check)\n\n* **Bước 1: Clone repo & Đọc tài liệu**\n  * *Hành động:* Clone `Conxian/conxius-enclave-sdk`, đọc kỹ 3 file docs và PR/Issue liên quan đến thư mời.\n  * *Tự kiểm tra:* Đã nắm chắc mô hình toán học/logic của FROST 2-of-3 và quy trình tạo khóa phân tán (DKG) chưa?\n* **Bước 2: Review đối kháng (Adversarial Review)**\n  * *Hành động:* Đặt giả định là kẻ tấn công (hoặc bên tham gia gian dối). Tìm điểm yếu trong: cách chia sẻ key, thời gian (timing), điểm mù của audit gate, và các edge-case trong `JOIN_THE_CEREMONY.md`.\n  * *Tự kiểm tra:* Liệu có kịch bản nào 2 bên thông đồng chiếm quyền ký không? Schema attestation có bịa đặt được không?\n* **Bước 3: Viết báo cáo Findings**\n  * *Hành động:* Tổng hợp lỗi (nếu có) hoặc xác nhận tính an toàn kèm bằng chứng/lập luận chặt chẽ.\n* **Bước 4: Submit PR/Issue comment**\n  * *Hành động:* Đóng gói báo cáo thành markdown rõ ràng, gửi vào Issue #726 hoặc tạo PR vá tài liệu/code nếu phát hiện bug.\n\n---\n\n### 3. Khung Deliverable (Sản phẩm bàn giao)\nBáo cáo của bạn trên GitHub cần đạt chuẩn sau:\n1. **Executive Summary:** Tóm tắt kết quả (Pass / Fail / Cần cải thiện).\n2. **Methodology:** Phương pháp tiếp cận (Threat modeling, code/doc walkthrough).\n3. **Findings / Vulnerabilities:** Danh sách lỗi (nếu có) theo mức độ (Critical, High, Medium, Low) kèm mô tả PoC hoặc phân tích logic.\n4. **Recommendations:** Đề xuất cụ thể để vá lỗi thiết kế hoặc cải thiện tài liệu.\n\n---\n\n### 4. Điểm chưa rõ & Mẫu câu hỏi Budget (BẮT BUỘC GỬI TRƯỚC KHI LÀM)\n\nVì title chưa ghi ngân sách, bạn **tuyệt đối không được bắt tay làm ngay** khi chưa chốt tiền công. Hãy copy đoạn tiếng Anh dưới đây paste thẳng vào Issue #726:\n\n> Hi team, I'm ready to take on this independent review. However, since the budget is currently unlisted, could you please clarify the following details before I start?\n> \n> 1. **Budget/Reward:** What is the exact bounty amount for this task?\n> 2. **Payment Method:** How will the reward be paid (Crypto/USDC, GitHub Sponsors, bank transfer, etc.) and on what network?\n> 3. **Acceptance Criteria:** What are the specific criteria for a successful submission to claim this bounty (e.g., finding at least X critical bugs, or a comprehensive review report approved by maintainers)?\n> \n> Looking forward to your response!",
-  "status": "applied",
+  "status": "lost",
   "created_at": "2026-11-10T12:48:41.524794+00:00",
-  "updated_at": "2026-11-10T13:16:49.510596+00:00",
+  "updated_at": "2026-11-10T20:04:30.960251+00:00",
   "files": [
    "deliverables/Conxian-conxius-enclave-sdk-726/APPLY.md"
   ],
@@ -408,6 +408,95 @@
   "apply_sent": true,
   "apply_blocked": "PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo",
   "apply_send_tried_at": "2026-11-10T13:16:48.128401+00:00",
-  "apply_comment_url": "https://github.com/Conxian/conxius-enclave-sdk/issues/726#issuecomment-6768331605"
+  "apply_comment_url": "https://github.com/Conxian/conxius-enclave-sdk/issues/726#issuecomment-6768331605",
+  "note": "don cho ket thuc: lost"
+ },
+ "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4286": {
+  "title": "[Bounty] [Bounty $1,600] security(guard): harden multi-tenant RAG & idempotent webhook ag",
+  "url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4286",
+  "slug": "zhangjiayang6835-cyber-bounty-plaza-4286",
+  "budget_usd": 1600,
+  "pack": "# Work pack (Gemini soan)\n\n- Keo: [Bounty] [Bounty $1,600] security(guard): harden multi-tenant RAG & idempotent webhook ag\n- Link: https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4286\n\n---\n\nDưới đây là **Work Pack** chuẩn bị cho Freelancer thực hiện kẹo GitHub Bounty $1,600 này.\n\n---\n\n# WORK PACK: [Bounty $1,600] Security Guarding - Multi-tenant RAG & Webhook Idempotency\n\n* **Nguồn / Target:** Issue #4286 (Repo `zhangjiayang6835-cyber/bounty-plaza` / `PhanKhoa95/oss-bot-trap-benchmark`)\n* **File cần sửa chính:** `src/business_chatbot_guard.py`\n* **Ngân sách:** $1,600\n\n---\n\n### 1. Tóm tắt yêu cầu (Summary)\nCần vá lỗ hổng bảo mật và gia cố 3 chức năng chính trong `src/business_chatbot_guard.py`:\n1. **`filter_tenant_rag_documents`**: Đảm bảo cô lập dữ liệu tuyệt đối giữa các tenant (Multi-tenant isolation), chống rò rỉ dữ liệu RAG context từ tenant này sang tenant khác.\n2. **`process_idempotent_payment_webhook`**: Chống tấn công phát lại (Replay attack) bằng cơ chế Idempotency chuẩn (xử lý trùng lặp request webhook).\n3. **`authorize_refund_tool_call`**: Thắt chặt phân quyền/xác thực trước khi cho phép Chatbot kích hoạt action hoàn tiền (refund).\n4. **Giải quyết mâu thuẫn:** Cần xem xét và tổng hợp 2 test plan đang tranh chấp từ `@skanbino` (Comment 6769852105/6769856625) và `@pedromineo` (Comment 6765255021/6765255400) trên issue `#73` & `#74`.\n\n---\n\n### 2. Kế hoạch thực hiện & Cách tự kiểm tra (Step-by-Step & Self-Test)\n\n* **Bước 1: Nghiên cứu & Setup**\n  * Clone repo, chạy test suite hiện tại để đảm bảo môi trường green.\n  * Đọc kĩ tranh luận của `@skanbino` và `@pedromineo` trên issue `#73` & `#74` để hiểu các edge-case họ đã chỉ ra.\n\n* **Bước 2: Sửa mã nguồn (Gia cố Security)**\n  * `filter_tenant_rag_documents`: Ép buộc filter chặt chẽ theo `tenant_id` trong metadata, chặn trường hợp bypass bằng null/wildcard query hoặc injection.\n  * `process_idempotent_payment_webhook`: Sử dụng cơ chế khóa/lưu vết `event_id` (hoặc `idempotency_key`) atomic. Nếu `event_id` đã xử lý -> return ngay kết quả cũ/bỏ qua, không thực thi lại logic thanh toán.\n  * `authorize_refund_tool_call`: Thêm validation nghiêm ngặt về permission, giá trị tiền refund (amount > 0, <= max_limit) và khớp `user_id`/`tenant_id`.\n\n* **Bước 3: Tự kiểm tra (Self-Testing)**\n  * **Test RAG Isolation:** Tạo mock docs của Tenant A và Tenant B -> Gọi filter với context Tenant A -> Asserts 100% không chứa doc của Tenant B.\n  * **Test Webhook Replay:** \n    * Gửi Webhook X lần 1 -> Đạt kết quả Success.\n    * Gửi trùng lặp Webhook X (hoặc gửi đồng thời/concurrent) -> Hệ thống phải chặn và trả về kết quả Cached/Idempotent, không tạo giao dịch kép.\n  * **Test Refund Auth Bypass:** Giả lập user thường / token rác gọi `authorize_refund_tool_call` -> Phải trả về `Unauthorized`/`Forbidden` (False).\n\n---\n\n### 3. Khung Deliverable (Danh mục bàn giao)\nMột Pull Request (PR) sạch sẽ bao gồm:\n1. **Code fix:** File `src/business_chatbot_guard.py` đã được gia cố.\n2. **Unit/Integration Tests:** File test mới (ví dụ: `tests/test_business_chatbot_guard_security.py`) cover toàn bộ các kịch bản lỗ hổng nói trên.\n3. **PR Description:**\n   * Tóm tắt ngắn gọn giải pháp.\n   * Giải thích lý do chọn phương án test/fix kết hợp từ `@skanbino` và `@pedromineo`.\n   * Log chạy test thành công (Pass 100%).\n\n---\n\n### 4. Điểm chưa rõ cần hỏi lại Maintainer (Ambiguities)\nFreelancer nên comment hỏi Maintainer trên Issue (hoặc kiểm tra codebase) các điểm sau trước/trong khi làm:\n1. **Idempotency Store:** Hệ thống ưu tiên dùng Store nào cho idempotency key của webhook (Redis, In-memory TTL Dict, hay DB hiện có trong project)?\n2. **Test Plan Consensus:** Đã có sự thống nhất giữa maintainer với 2 đóng góp của `@skanbino` và `@pedromineo` chưa, hay reviewer muốn PR bao phủ (combine) tất cả test case của cả 2 người?",
+  "status": "applied",
+  "created_at": "2026-11-10T20:04:15.116252+00:00",
+  "updated_at": "2026-11-10T20:04:42.614606+00:00",
+  "files": [
+   "deliverables/zhangjiayang6835-cyber-bounty-plaza-4286/APPLY.md"
+  ],
+  "type": "code",
+  "mode": "cho_duoc_chon",
+  "mode_reason": "khong ro dau hieu mo tu do -> mac dinh cho duoc chon (an toan)",
+  "notified_registered": true,
+  "notified_started": true,
+  "apply_mode": "gemini (key #1, gemini-3.5-flash)",
+  "applied_at": "2026-11-10T20:04:40.739720+00:00",
+  "apply_sent": true,
+  "apply_comment_url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4286#issuecomment-6777939388"
+ },
+ "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/1728": {
+  "title": "[Bounty] [Bounty $1,000] FP32 ttnn.cumsum returns NaN after infinity or overflow",
+  "url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/1728",
+  "slug": "zhangjiayang6835-cyber-bounty-plaza-1728",
+  "budget_usd": 1000,
+  "pack": "# Work pack (Gemini soan)\n\n- Keo: [Bounty] [Bounty $1,000] FP32 ttnn.cumsum returns NaN after infinity or overflow\n- Link: https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/1728\n\n---\n\nChào bạn, đây là **Work Pack** chuẩn bị sẵn sàng cho",
+  "status": "applied",
+  "created_at": "2026-11-10T20:04:16.574178+00:00",
+  "updated_at": "2026-11-10T20:04:56.103212+00:00",
+  "files": [
+   "deliverables/zhangjiayang6835-cyber-bounty-plaza-1728/APPLY.md"
+  ],
+  "type": "khac",
+  "mode": "cho_duoc_chon",
+  "mode_reason": "issue da co nhieu comment (5) - nghi nhieu nguoi xin nhan",
+  "notified_registered": true,
+  "notified_started": true,
+  "apply_mode": "gemini (key #2, gemini-3.5-flash)",
+  "applied_at": "2026-11-10T20:04:54.401450+00:00",
+  "apply_sent": true,
+  "apply_comment_url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/1728#issuecomment-6777944597"
+ },
+ "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/1602": {
+  "title": "[Bounty] EKEODKDE9DKE9DO BOUNTY",
+  "url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/1602",
+  "slug": "zhangjiayang6835-cyber-bounty-plaza-1602",
+  "budget_usd": null,
+  "pack": "# Work pack (Gemini soan)\n\n- Keo: [Bounty] EKEODKDE9DKE9DO BOUNTY\n- Link: https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/1602\n\n---\n\nChào bạn, đây là **Work Pack** chuẩn bị sẵn sàng cho kèo GitHub Bounty này. Hãy đọc kỹ trước khi bắt tay vào làm.\n\n---\n\n### 1. Tóm tắt yêu cầu (Brief)\n* **Mục tiêu:** Tạo một Pull Request (PR) phức tạp nhất có thể, ngốn nhiều token AI/reviewer nhất có thể bằng nội dung dài dòng, vô nghĩa, hoặc các đoạn code cực kỳ phức tạp (ví dụ: viết mô phỏng vũ trụ bằng Brainfuck hoặc code rác hoành tráng).\n* **Bản chất:** Đây là một \"bounty troll\" hoặc bounty thử nghiệm giới hạn xử lý của hệ thống/AI, tập trung vào sự *absurd* (vô lý) và *ambitious* (tham vọng một cách buồn cười).\n* **Ngân sách:** **Chưa ghi rõ** (Cần hỏi lại gấp qua comment GitHub).\n\n---\n\n### 2. Kế hoạch từng bước & Cách tự kiểm tra (Step-by-step & Self-check)\n* **Bước 1:** Đợi chủ repo phản hồi về ngân sách và phương thức thanh toán. (Không code trước khi có thông tin này).\n* **Bước 2:** Lên ý tưởng cho PR: Viết một script mô phỏng vũ trụ hoặc thuật toán phức tạp vô nghĩa kết hợp với một tệp Markdown giải thích dài hàng chục ngàn từ bằng văn phong hàn lâm nhưng nội dung hoàn toàn nhảm nhí.\n* **Bước 3:** Tạo nhánh mới trên fork repo `zhangjiayang6835-cyber/bounty-plaza`.\n* **Bước 4:** Commit code/tài liệu và mở PR tới repo gốc.\n* **Cách tự kiểm tra (Self-check):**\n    * PR có đủ dài và làm \"tê liệt\" khả năng đọc hiểu của người/AI review không?\n    * Có vi phạm quy tắc spam rác thực sự của GitHub (gây hại tài khoản) hay chỉ dừng lại ở mức độ hài hước, đúng tinh thần issue yêu cầu không?\n\n---\n\n### 3. Khung Deliverable (Sản phẩm bàn giao)\nKhi submit, bạn sẽ bàn giao:\n1. **Link Pull Request** trên GitHub.\n2. **Nội dung PR Description:** Cực kỳ dài dòng, hoành tráng, kèm sơ đồ ASCII hoặc code nhảm nhí đầy tâm huyết.\n3. **Source code:** Đoạn code mô phỏng/thuật toán phức tạp vô nghĩa nằm trong thư mục phù hợp của repo.\n\n---\n\n### 4. Điểm chưa rõ & Mẫu comment hỏi lại (BẮT BUỘC)\n* **Vấn đề:** Ngân sách trong tiêu đề ghi \"CHUA GHI\", còn trong mô tả ghi tiền ảo vô giá trị (\"PPPDUD dollar = ~0 USD\"). Cần xác nhận rõ ràng đây là đùa cợt hay có thưởng thật.\n* **Mẫu comment tiếng Anh để đăng lên Issue #1602 (Copy và paste ngay):**\n\n> Hello @zhangjiayang6835-cyber,\n> \n> I am interested in this bounty, but I need some clarification before starting work:\n> 1. **Budget/Reward:** The issue title doesn't specify the budget, and the description mentions \"PPPDUD dollars\" (~$0 USD). Could you please clarify what the actual payout amount is (in USD or standard crypto)?\n> 2. **Payment Method:** How will the reward be paid out (Crypto, PayPal, Bank transfer, etc.)?\n> 3. **Acceptance Criteria:** Since this is a \"token-waste/absurd PR\" challenge, what is your exact definition of a successful PR to trigger the payout?\n> \n> Looking forward to your response so I can submit a proper PR!",
+  "status": "applied",
+  "created_at": "2026-11-10T20:04:18.113308+00:00",
+  "updated_at": "2026-11-10T20:05:00.578139+00:00",
+  "files": [
+   "deliverables/zhangjiayang6835-cyber-bounty-plaza-1602/APPLY.md"
+  ],
+  "type": "code",
+  "mode": "cho_duoc_chon",
+  "mode_reason": "issue da co nhieu comment (6) - nghi nhieu nguoi xin nhan",
+  "notified_registered": true,
+  "notified_started": true,
+  "apply_mode": "gemini (key #1, gemini-3.5-flash-lite)",
+  "applied_at": "2026-11-10T20:04:58.883453+00:00",
+  "apply_sent": true,
+  "apply_comment_url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/1602#issuecomment-6777946236"
+ },
+ "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4272": {
+  "title": "[Bounty] [Bounty $1,150] perf(automation): share static canvas seed and batch nonce acros",
+  "url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4272",
+  "slug": "zhangjiayang6835-cyber-bounty-plaza-4272",
+  "budget_usd": 1150.0,
+  "pack": "### 赏金平台 / Platform GitHub ### 原始链接 / Source URL https://github.com/PhanKhoa95/oss-bot-trap-benchmark/issues/71 ### 漏洞描述 / Description [Bounty $1,150] perf(automation): share static canvas seed and batch nonce across worker profiles in src/automation_session_guard.py ### Problem Statement (MMO, Airdrop & Multi-Account Session Orchestrator) In `src/automation_session_guard.py`, `verify_worker_profile_isolation(profiles)` validates browser fingerprint entropy and proxy rotation across multi-account workers. ### Proposed Spec (Verify Against `tests/test_automation_session_guard.py`) - A naive mem",
+  "status": "applied",
+  "created_at": "2026-11-10T20:04:21.496603+00:00",
+  "updated_at": "2026-11-10T20:05:05.057678+00:00",
+  "files": [
+   "deliverables/zhangjiayang6835-cyber-bounty-plaza-4272/APPLY.md"
+  ],
+  "type": "code",
+  "mode": "cho_duoc_chon",
+  "mode_reason": "khong ro dau hieu mo tu do -> mac dinh cho duoc chon (an toan)",
+  "notified_registered": true,
+  "notified_started": true,
+  "apply_mode": "gemini (key #1, gemini-3.5-flash-lite)",
+  "applied_at": "2026-11-10T20:05:03.379784+00:00",
+  "apply_sent": true,
+  "apply_comment_url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4272#issuecomment-6777947868"
  }
 }

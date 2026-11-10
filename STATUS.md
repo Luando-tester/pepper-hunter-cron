@@ -1,14 +1,17 @@
 # Pepper Hunter Doer - STATUS
 
-Dang chay binh thuong - cap nhat 20:39 VN, tong keo dang theo doi: 17, moi dang ky vong nay: 0, loi da cach ly vong nay: 0
-Cap nhat: 2026-11-10 20:39:46 (VN) / 2026-11-10 13:39:46 (UTC)
-Worker /latest ts: 2026-11-10T13:39:04.289Z
-Tong keo da theo doi: 17
-Trang thai: applied=11, lost=2, pipeline-test=1, skipped_trap=2, submitted=1
+Dang chay binh thuong - cap nhat 03:05 VN, tong keo dang theo doi: 21, moi dang ky vong nay: 4, loi da cach ly vong nay: 0
+Cap nhat: 2026-11-11 03:05:05 (VN) / 2026-11-10 20:05:05 (UTC)
+Worker /latest ts: 2026-11-10T20:04:04.082Z
+Tong keo da theo doi: 21
+Trang thai: applied=14, lost=3, pipeline-test=1, skipped_trap=2, submitted=1
 
-## Dang cho duoc chon (da nop don) (11)
+## Dang cho duoc chon (da nop don) (14)
 
-- [[Challenge] Independently review the release-signing design and the ceremony invite](https://github.com/Conxian/conxius-enclave-sdk/issues/726) - cho_duoc_chon/code - chua ghi ngan sach - don: da gui
+- [[Bounty] [Bounty $1,150] perf(automation): share static canvas seed and batch nonce acros](https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4272) - cho_duoc_chon/code - $1150.0 - don: da gui
+- [[Bounty] EKEODKDE9DKE9DO BOUNTY](https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/1602) - cho_duoc_chon/code - chua ghi ngan sach - don: da gui
+- [[Bounty] [Bounty $1,000] FP32 ttnn.cumsum returns NaN after infinity or overflow](https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/1728) - cho_duoc_chon/khac - $1000 - don: da gui
+- [[Bounty] [Bounty $1,600] security(guard): harden multi-tenant RAG & idempotent webhook ag](https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4286) - cho_duoc_chon/code - $1600 - don: da gui
 - [Specify scoped build-bounty rules, alpha funding and governance](https://github.com/ditto-assistant/ditto-subnet/issues/2044) - cho_duoc_chon/code - chua ghi ngan sach - don: da gui
 - [Implement bounty acceptance, alpha awards, fee refunds and accounting](https://github.com/ditto-assistant/ditto-subnet/issues/2046) - cho_duoc_chon/code - chua ghi ngan sach - don: da gui
 - [[Slice A] Public-evidence coverage score and gap atlas](https://github.com/Element-Ventures-Canada-Ltd/openchokepoint/issues/16) - cho_duoc_chon/code - chua ghi ngan sach - don: da gui
@@ -24,8 +27,9 @@ Trang thai: applied=11, lost=2, pipeline-test=1, skipped_trap=2, submitted=1
 
 - [test issue](https://github.com/Zimb/zimb/issues/1) - lam_ngay/code - chua ghi ngan sach - PR: https://github.com/Zimb/zimb/pull/13
 
-## Thua / da co nguoi nhan / issue dong (2)
+## Thua / da co nguoi nhan / issue dong (3)
 
+- [[Challenge] Independently review the release-signing design and the ceremony invite](https://github.com/Conxian/conxius-enclave-sdk/issues/726) - cho_duoc_chon/code - chua ghi ngan sach
 - [[Challenge] Capability manifest never advertises a non-routable adapter as supported](https://github.com/Conxian/conxian-gateway/issues/828) - cho_duoc_chon/code - chua ghi ngan sach
 - [[Challenge] Recompute the release-ceremony countdown from public evidence](https://github.com/Conxian/conxius-enclave-sdk/issues/721) - cho_duoc_chon/code - chua ghi ngan sach
 
