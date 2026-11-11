@@ -586,5 +586,30 @@
   "applied_at": "2026-11-10T23:34:40.386786+00:00",
   "apply_sent": true,
   "apply_comment_url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4275#issuecomment-6782282275"
+ },
+ "https://github.com/space-wizards/space-station-14/issues/44876": {
+  "title": "Parcel wraps containing bounties put into other containers adds reward without fulfilling bounty.",
+  "url": "https://github.com/space-wizards/space-station-14/issues/44876",
+  "slug": "space-wizards-space-station-14-44876",
+  "budget_usd": null,
+  "pack": "## Challenge (Proof Guild — \"Break it\" lane) **Claim under test:** `GET /api/v1/capabilities` never advertises a non-routable adapter as supported. Adapters with no Core taxonomy binding must be reported `unavailable`, never `observe`/`route`/`prepare`. Pointer: `internal/api/src/capabilities.rs` (`classify`), `internal/api/src/lib.rs` (`new_lightning_adapter_from_env`), `lib_conxian_core::capability::CHAIN_TAXONOMY_VERSION`. **Deliverable (reproducible artifact, not prose):** - A command transcript or test that forces an unmapped adapter id (e.g. `bitvm3`) and shows the emitted `operation_cla",
+  "status": "lost",
+  "created_at": "2026-11-10T12:15:00.205646+00:00",
+  "updated_at": "2026-11-10T13:39:39.913778+00:00",
+  "files": [
+   "deliverables/Conxian-conxian-gateway-828/APPLY.md"
+  ],
+  "type": "code",
+  "mode": "cho_duoc_chon",
+  "mode_reason": "khong ro dau hieu mo tu do -> mac dinh cho duoc chon (an toan)",
+  "apply_mode": "gemini (key #1, gemini-3.5-flash-lite)",
+  "applied_at": "2026-11-10T12:15:07.156728+00:00",
+  "apply_sent": false,
+  "notified_registered": true,
+  "notified_started": true,
+  "apply_send_tried_at": "2026-11-10T13:16:19.642696+00:00",
+  "apply_blocked": "PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo",
+  "apply_comment_url": "https://github.com/Conxian/conxian-gateway/issues/828#issuecomment-6768321592",
+  "note": "FALSE POSITIVE: 'bounty' trong issue nay la co che trong game SS14, khong phai bounty tra tien. Don sai da XOA 07:3x 11/11, cam dang ky lai."
  }
 }
