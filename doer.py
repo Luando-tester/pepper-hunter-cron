@@ -60,19 +60,27 @@ state/control.json ({"outbound": false}), doc lai o DAU MOI VONG; file
 thieu/hong/khong doc duoc -> outbound OFF (fail-closed). Moi duong POST ra
 GitHub (make_apply, resend_apply, submit_github) deu co chot chan
 outbound_guard() tra "held_outbound_off" va gui 0 request khi OFF. Keo moi
-qua kiem chung tien that -> trang thai cho_duyet (cho Luan duyet) + dung 1
-tin Telegram loai "choduyet"; theo doi keo cu (assign/merge/dong) van chay
-binh thuong - rieng phat hien DUOC GIAO viec tren keo dang theo doi thi
+qua kiem chung tien that -> trang thai tu_xu (TU XU LUON, KHONG CHO DUYET
+- bo buoc cho duyet theo lenh Luan 05:23 12/11 "khong can cho tui duyet,
+tu xu luon"; outbound van KHOA CUNG): doer tu chuan bi noi bo - soan san
+don theo TEMPLATE AN TOAN (chi ho so that, khong dung Gemini viet don,
+khong bia kinh nghiem) luu o deliverables/<slug>/APPLY.md + ghi
+verify_note kiem chung tien that - va bao dung 1 tin Telegram loai
+"choduyet" noi ro da TU XU, khong cho duyet. Keo di san dang o trang thai
+cho_duyet (truoc 05:23 12/11) tu dong chuyen sang tu_xu o vong ke, khong
+bao trung. Theo doi keo cu (assign/merge/dong) van chay binh thuong -
+rieng phat hien DUOC GIAO viec tren keo dang theo doi (ke ca tu_xu) thi
 bao Telegram "DUOC GIAO KEO" + ghi assigned nhung van khong tu lam/tu nop
 (chuyen qua chat xu ly co giam sat). Moi wording trang thai/thong bao
 phai xưng la cong cu tu dong cua du an ca nhan - cam dong vai nguoi that
 hay "nha nghien cuu doc lap" (chot 19:08 11/11). Muon mo lai outbound BAT BUOC sua control.json thanh
 {"outbound": true} roi commit - hanh dong co y, khong co duong tu bat.
 Kem lenh 19:01 11/11 (he bao qua nhieu): o che do hunt-only, Telegram CHI
-nhan tin loai "choduyet" va "incident" (su co that: loi toan vong, cong
-chan keo bay/khong tien); moi tin thuong (nhan keo, bat dau xu ly, duoc
-chon, thua, het han, da nop, tien ve, don dang ngam...) bi gat qua notify(),
-chi ghi log. STATUS.md van commit nhu cu (khong phai thong bao).
+nhan tin loai "choduyet" (bao keo tu_xu moi), "assigned" (DUOC GIAO KEO),
+"incident" (su co that: loi toan vong, cong chan keo bay/khong tien) va
+"tienve" (tien ve - Luan bat lai 05:21 12/11); moi tin thuong (nhan keo,
+bat dau xu ly, thua, het han, da nop, don dang ngam...) bi gat qua
+notify(), chi ghi log. STATUS.md van commit nhu cu (khong phai thong bao).
 
 MAY TRANG THAI (luan chot 18:01 10/11 - nhieu keo phai THANG/DUOC CHON truoc):
   mode=lam_ngay      : CHI khi issue NOI RO moi lam ngay (OPEN_SIGNALS:
@@ -524,7 +532,8 @@ def telegram_send(text):
 # 11/11 - he bao qua nhieu; bo sung "assigned" 19:08; bo sung "tienve"
 # 05:21 12/11 - Luan chot BAT LAI bao TIEN VE): khi outbound OFF
 # (hunt-only), Telegram CHI nhan 4 loai tin: "choduyet" (keo moi co tien
-# that dang cho Luan duyet), "assigned" (keo dang theo doi vua duoc
+# that da TU XU - bo cho duyet theo lenh Luan 05:23 12/11), "assigned"
+# (keo dang theo doi vua duoc
 # maintainer giao cho Luando-tester - bao ngay de chuyen qua chat xu ly co
 # giam sat; doer khong tu lam/tu nop), "incident" (su co that: loi toan
 # vong cua chuoi, cong chan keo bay / keo khong tien that) va "tienve"
@@ -1173,31 +1182,98 @@ def save_state(state):
 
 
 # ---------------------------------------------------------------- Hanh dong chinh
+def money_evidence_note(entry, info):
+    """Ghi chu kiem chung tien that NGAN cho keo vua qua presend_verify:
+    tin hieu tien tim thay ngay trong issue (so tien $..., ...USD/USDC/USDT,
+    kenh tra/escrow nhu algora/opire/escrow, label bounty) + ngan sach da
+    ghi. Chi trich tu chinh noi dung issue/title - khong suy doan them."""
+    title = (info or {}).get("title") or entry.get("title") or ""
+    body = (info or {}).get("body") or ""
+    labels = (info or {}).get("labels") or []
+    text = title + "\n" + body
+    found = []
+    for m in re.finditer(r"\$\s?\d[\d,]*(?:\.\d+)?", text):
+        if m.group(0) not in found:
+            found.append(m.group(0))
+    for m in re.finditer(r"\d[\d,]*(?:\.\d+)?\s?(?:USDC|USDT|USD)\b", text, re.I):
+        if m.group(0) not in found:
+            found.append(m.group(0))
+    parts = []
+    if found:
+        parts.append("tin hieu tien: " + ", ".join(found[:4]))
+    route = [w for w in ("algora", "opire", "escrow") if w in text.lower()]
+    if route:
+        parts.append("kenh tra/escrow nhac trong issue: " + ", ".join(route))
+    if any("bounty" in (l or "").lower() for l in labels):
+        parts.append("co label bounty")
+    if entry.get("budget_usd"):
+        parts.append("ngan sach ghi: $%s" % entry["budget_usd"])
+    return ("kiem chung tien that PASS - "
+            + ("; ".join(parts) if parts else "co tin hieu tien that (presend_verify)"))
+
+
+def prepare_tu_xu(entry, info):
+    """TU XU (lenh Luan 05:23 12/11 - bo buoc cho duyet): keo da qua kiem
+    chung tien that duoc doer TU NHAN vao xu ly noi bo, KHONG cho duyet:
+    (a) soan san APPLY.md = don theo TEMPLATE AN TOAN (chi ho so that qua
+        template_apply/REAL_PROFILE - TUYET DOI khong dung Gemini viet
+        don tu do, khong bia kinh nghiem), luu vao deliverables/<slug>/
+        APPLY.md theo mau cu; don chi NAM SAN trong repo - outbound dang
+        khoa cung nen khong co gi duoc gui ra ngoai.
+    (b) ghi verify_note (tin hieu tien that + kenh tra/escrow thay trong
+        issue) lam bang chung kiem chung.
+    (c) bao Telegram DUNG 1 tin loai "choduyet" noi ro da TU XU, khong cho
+        duyet - chi khi chua tung bao (keo di san cho_duyet da co
+        choduyet_notified thi khong bao lai)."""
+    entry["status"] = "tu_xu"
+    if not entry.get("tu_xu_at"):
+        entry["tu_xu_at"] = entry.get("cho_duyet_at") or now_iso()
+    entry["held_reason"] = ("held_outbound_off - hunt-only TU XU: da soan san don + dang theo doi, "
+                             "khong cho duyet, khong gui don/PR ra ngoai")
+    if info is not None:
+        entry["verify_note"] = money_evidence_note(entry, info)
+    if not any(f.endswith("APPLY.md") for f in (entry.get("files") or [])):
+        deal = {"title": entry["title"], "url": entry["url"],
+                "budget_usd": entry.get("budget_usd"), "pack": entry.get("pack", "")}
+        body = sanitize_comment_body(ensure_ask_money(template_apply(deal).strip(), deal))
+        doc = (NOTE_DRAFT
+               + "# Don xin nhan viec (APPLY) - %s\n\n- Keo: %s\n- Link: %s\n- Mode: tu_xu (hunt-only)\n"
+                 "- Nguon soan: template an toan (chi ho so that, khong dung Gemini viet don)\n"
+                 "- Trang thai gui: KHONG GUI - outbound khoa cung; don chi nam san trong repo\n\n"
+                 "## Noi dung comment se gui\n\n%s\n"
+               % (entry["title"], entry["title"], entry["url"], body))
+        rel = write_file(os.path.join(deal_dir(entry["slug"]), "APPLY.md"), doc)
+        entry.setdefault("files", []).append(rel)
+        entry["apply_mode"] = "template an toan (hunt-only tu xu - soan san, khong gui)"
+    if not entry.get("tu_xu_notified") and not entry.get("choduyet_notified"):
+        budget_txt = ("$" + str(entry["budget_usd"])) if entry.get("budget_usd") else "co tin hieu tien that (chua ghi so cu the)"
+        msg = ("[Pepper Hunter Doer] KEO MOI CO TIEN THAT - DA TU XU (hunt-only, KHONG CHO DUYET, CHUA GUI DON)\n"
+               "%s\nLink: %s\nNgan sach: %s | Mode phan loai: %s\n"
+               "Trang thai: tu_xu - doer da tu nhan keo vao xu ly noi bo, khong cho duyet: da soan san don "
+               "theo ho so that (nam o APPLY.md, chua gui), da ghi nhan kiem chung tien that va dang theo doi sat. "
+               "Outbound van khoa cung: khong gui don, khong mo PR."
+               % (entry["title"], entry["url"], budget_txt, entry.get("mode", "?")))
+        if notify(msg, kind="choduyet"):
+            entry["tu_xu_notified"] = True
+    log("TU XU (hunt-only, khong cho duyet): %s" % entry["url"])
+    return entry
+
+
 def hunt_classify_new(entry):
-    """HUNT-ONLY (outbound OFF): keo moi chi duoc PHAN LOAI - khong soan
-    don, khong lam san pham, khong gui bat cu thu gi ra GitHub.
+    """HUNT-ONLY (outbound OFF): keo moi duoc PHAN LOAI + TU XU noi bo -
+    khong gui bat cu thu gi ra GitHub.
     - Khong qua kiem chung truoc gui -> block_presend nhu thuong
       (skipped_nopay / skipped_trap; tin chan la loai "incident").
-    - Qua kiem chung (co TIN HIEU TIEN THAT) -> trang thai cho_duyet +
-      dung 1 tin Telegram loai "choduyet" noi ro keo dang CHO LUAN DUYET,
-      chua gui don. Cho smet khi Luan duyet moi xu ly tiep."""
+    - Qua kiem chung (co TIN HIEU TIEN THAT) -> TU XU LUON theo lenh Luan
+      05:23 12/11 (bo buoc cho duyet): prepare_tu_xu() soan san don theo
+      template an toan + ghi verify_note + bao Telegram dung 1 tin loai
+      "choduyet" noi ro da tu xu, khong cho duyet."""
     info = fetch_issue_info(entry["url"])
     ok_v, reason_v = presend_verify(entry, info)
     if not ok_v:
         block_presend(entry, reason_v)
         return entry
-    entry["status"] = "cho_duyet"
-    entry["cho_duyet_at"] = now_iso()
-    entry["held_reason"] = "held_outbound_off - hunt-only: cho Luan duyet, chua gui don/PR"
-    budget_txt = ("$" + str(entry["budget_usd"])) if entry.get("budget_usd") else "co tin hieu tien that (chua ghi so cu the)"
-    msg = ("[Pepper Hunter Doer] KEO MOI CO TIEN THAT - CHO LUAN DUYET (hunt-only, CHUA GUI DON)\n"
-           "%s\nLink: %s\nNgan sach: %s | Mode phan loai: %s\n"
-           "Trang thai: cho_duyet - doer chi san keo, chua gui don, chua lam san pham, chua mo PR. "
-           "Cho Luan duyet moi xu ly tiep."
-           % (entry["title"], entry["url"], budget_txt, entry.get("mode", "?")))
-    if notify(msg, kind="choduyet"):
-        entry["choduyet_notified"] = True
-    log("CHO DUYET (hunt-only): %s" % entry["url"])
+    prepare_tu_xu(entry, info)
     return entry
 
 
@@ -1732,7 +1808,7 @@ def write_status(state, latest_ts, registered_this_cycle=0, cycle_errors=0):
              "Tong keo da theo doi: %d" % len(state),
              "Trang thai: " + (", ".join("%s=%d" % kv for kv in sorted(counts.items())) or "chua co keo"),
              "Outbound (gui don/PR len GitHub): " + ("ON" if outbound_enabled()
-                                                      else "OFF - HUNT-ONLY (chi san + phan loai + theo doi; keo co tien that -> cho_duyet, cho Luan duyet)"),
+                                                      else "OFF - HUNT-ONLY (chi san + phan loai + theo doi; keo co tien that -> tu_xu, tu xu luon khong cho duyet)"),
              ""]
     order = [("applied", "Dang cho duoc chon (da nop don)"),
              ("assigned", "Da duoc chon - chuan bi lam"),
@@ -1744,7 +1820,8 @@ def write_status(state, latest_ts, registered_this_cycle=0, cycle_errors=0):
              ("het_han", "Het han cho"),
              ("skipped_trap", "Bo qua - repo bay bot (khong dang ky, khong gui don)"),
              ("skipped_nopay", "Bo qua - khong co tin hieu tien that (kiem chung truoc gui chan)"),
-             ("cho_duyet", "Cho Luan duyet - keo co tien that (hunt-only, CHUA gui don)"),
+             ("tu_xu", "Tu xu - keo co tien that (hunt-only, khong cho duyet, CHUA gui don)"),
+             ("cho_duyet", "Tu xu - keo di san cho_duyet dang tu dong chuyen sang tu_xu"),
              ("new", "Moi dang ky")]
     for status, label in order:
         rows = [e for e in state.values() if e.get("status") == status]
@@ -1756,8 +1833,12 @@ def write_status(state, latest_ts, registered_this_cycle=0, cycle_errors=0):
             extra = ""
             if e.get("pr_url"):
                 extra = " - PR: " + e["pr_url"]
+            elif status == "tu_xu":
+                extra = " - tu xu tu " + (e.get("tu_xu_at") or "?")
+                if e.get("verify_note"):
+                    extra += " | " + e["verify_note"][:120]
             elif status == "cho_duyet":
-                extra = " - cho duyet tu " + (e.get("cho_duyet_at") or "?")
+                extra = " - keo di san, dang chuyen sang tu_xu"
             elif status == "applied":
                 if e.get("apply_sent"):
                     extra = " - don: da gui"
@@ -1969,9 +2050,9 @@ def process_cycle(state, pool, pool_state):
                             sort_keys=True, ensure_ascii=False, default=str)
         try:
             if status == "new" and not outbound_enabled():
-                # HUNT-ONLY: keo moi chi PHAN LOAI -> cho_duyet (co tien
-                # that) hoac skipped_nopay/skipped_trap. Khong gui don,
-                # khong lam san pham, khong mo PR.
+                # HUNT-ONLY: keo moi PHAN LOAI -> tu_xu (co tien that, TU
+                # XU LUON khong cho duyet - lenh 05:23 12/11) hoac
+                # skipped_nopay/skipped_trap. Khong gui don, khong mo PR.
                 hunt_classify_new(entry)
             elif status == "new" and entry.get("mode") == "cho_duoc_chon":
                 make_apply(entry, pool, pool_state, fetch_issue_info(url))
@@ -1987,13 +2068,38 @@ def process_cycle(state, pool, pool_state):
                     if entry.get("status") == "working" and (os.environ.get("GITHUB_PAT") or "").strip():
                         submit_github(entry)
             elif status == "cho_duyet":
-                # Da ghi nhan, dang cho Luan duyet: chi theo doi tinh trang
-                # issue (dong -> lost), khong gui gi, khong bao routine.
+                # TRANG THAI DI SAN (truoc lenh 05:23 12/11 keo dung o day
+                # cho duyet): TU DONG chuyen sang tu_xu bang prepare_tu_xu
+                # (soan san don + verify_note; khong bao lai neu luc
+                # cho_duyet da bao). Issue da dong -> lost nhu cu. Doc
+                # issue loi (info None) -> giu nguyen, vong sau thu lai.
                 info_c = fetch_issue_info(url)
                 if info_c and info_c.get("state") == "closed":
                     entry["status"] = "lost"
-                    entry["note"] = "issue da dong trong luc cho Luan duyet"
+                    entry["note"] = "issue da dong truoc khi chuyen tu cho_duyet sang tu_xu"
                     log("Keo cho_duyet -> lost (issue da dong): %s" % url)
+                elif info_c:
+                    prepare_tu_xu(entry, info_c)
+            elif status == "tu_xu":
+                # TU XU: don da soan san (APPLY.md), dang theo doi ket qua
+                # nhu keo applied o hunt-only - nhung TUYET DOI khong gui
+                # gi ra ngoai. Duoc giao (assign/invite) -> assigned + bao
+                # DUOC GIAO KEO (van khong tu lam/tu nop - chuyen qua chat
+                # xu ly co giam sat); issue dong / da giao nguoi khac ->
+                # lost (tin thua la routine, bi gat o hunt-only nhu
+                # nhanh applied).
+                v_t, r_t = check_assignment(entry)
+                if v_t == "assigned":
+                    entry["status"] = "assigned"
+                    entry["assigned_at"] = now_iso()
+                    notify("[Pepper Hunter Doer] DUOC GIAO KEO (hunt-only - khong tu lam, khong tu nop)\n%s\nLink: %s\nMaintainer da giao keo cho Luando-tester. Doer la cong cu tu dong nen chi ghi nhan + bao ngay: khong tu lam san pham, khong tu mo PR. Viec lam keo se duoc xu ly co giam sat qua chat."
+                           % (entry["title"], url), kind="assigned")
+                    log("TU XU -> DUOC GIAO KEO (hunt-only - cho xu ly co giam sat qua chat): %s" % url)
+                elif v_t == "lost":
+                    entry["status"] = "lost"
+                    entry["note"] = "keo tu_xu ket thuc: " + (r_t or "issue da dong")
+                    notify_application_ended(entry, "lost", r_t)
+                    log("Keo tu_xu -> lost (%s): %s" % (r_t or "issue da dong", url))
             elif status == "applied":
                 if not outbound_enabled():
                     # HUNT-ONLY: TUYET DOI khong gui bo sung don cu; chi
