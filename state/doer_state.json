@@ -619,7 +619,7 @@
   "slug": "andrewsiah-agentswarm-data-tasks-129",
   "budget_usd": null,
   "pack": "## Overview **Priority:** `P0` **QA Bounty:** Cross-Model API Compatibility Test whether different models handle identical API requests consistently, including streaming, tool calls, structured outputs, and errors. ## What Needs Testing - Send identical OpenAI-compatible (`/v1/chat/completions`) and Anthropic-compatible (`/v1/messages`) payloads across all major model families (Zen, Enso, Kai, Claude, GPT, Gemini, Qwen, DeepSeek, Llama). - Verify consistent SSE streaming chunk structure (`data: {...}`, `delta.content`, `delta.tool_calls`, `finish_reason`, `data: [DONE]`). - Verify consistent t",
-  "status": "assigned",
+  "status": "submitted",
   "created_at": "2026-11-10T12:15:00.876500+00:00",
   "updated_at": "2026-11-10T13:16:22.905630+00:00",
   "files": [
@@ -636,7 +636,8 @@
   "apply_send_tried_at": "2026-11-10T13:16:21.383130+00:00",
   "apply_blocked": "PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo",
   "apply_comment_url": "https://github.com/hanzoai/ai/issues/138#issuecomment-6768322193",
-  "note": "Maintainer andrewsiah 07:35 11/11: 'it is yours to try' - claims khong chan nguoi khac, PR dau tien pass check thi merge. Checker: tasks/first-match/check.py theo pinned commit trong issue."
+  "note": "PR #134 da mo (Closes #129), public checker PASS tai may Muse; cho maintainer chay hidden acceptance + source review (first-PR-wins, khong doc quyen).",
+  "pr_url": "https://github.com/andrewsiah/agentswarm-data-tasks/pull/134"
  },
  "https://github.com/andrewsiah/agentswarm-remote/issues/6": {
   "title": "Add a Korean README for agentswarm-remote",
