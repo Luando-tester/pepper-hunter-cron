@@ -521,18 +521,20 @@ def telegram_send(text):
 
 
 # --- Cong thong bao Telegram theo che do (kem hunt-only, lenh Luan 19:01
-# 11/11 - he bao qua nhieu; bo sung "assigned" 19:08): khi outbound OFF
-# (hunt-only), Telegram CHI nhan 3 loai tin: "choduyet" (keo moi co tien
+# 11/11 - he bao qua nhieu; bo sung "assigned" 19:08; bo sung "tienve"
+# 05:21 12/11 - Luan chot BAT LAI bao TIEN VE): khi outbound OFF
+# (hunt-only), Telegram CHI nhan 4 loai tin: "choduyet" (keo moi co tien
 # that dang cho Luan duyet), "assigned" (keo dang theo doi vua duoc
 # maintainer giao cho Luando-tester - bao ngay de chuyen qua chat xu ly co
-# giam sat; doer khong tu lam/tu nop) va "incident" (su co that: loi toan
-# vong cua chuoi, cong chan keo bay / keo khong tien that). Moi tin
-# "routine" (nhan keo moi, bat dau xu ly, thua nguoi khac, het han cho, da
-# nop bai, tien ve, don dang ngam, hoi phuc kenh...) bi GAT - chi ghi log,
-# khong gui. Outbound ON thi moi tin gui nhu cu. STATUS.md khong qua cong
-# nay (chi la file commit).
+# giam sat; doer khong tu lam/tu nop), "incident" (su co that: loi toan
+# vong cua chuoi, cong chan keo bay / keo khong tien that) va "tienve"
+# (tien that da ve - ngoai le duy nhat trong nhom routine, theo lenh
+# 05:21 12/11). Moi tin "routine" con lai (nhan keo moi, bat dau xu ly,
+# thua nguoi khac, het han cho, da nop bai, don dang ngam, hoi phuc
+# kenh...) bi GAT - chi ghi log, khong gui. Outbound ON thi moi tin gui
+# nhu cu. STATUS.md khong qua cong nay (chi la file commit).
 def notify(text, kind="routine"):
-    if not outbound_enabled() and kind not in ("choduyet", "incident", "assigned"):
+    if not outbound_enabled() and kind not in ("choduyet", "incident", "assigned", "tienve"):
         log("Telegram BI GAT (hunt-only, tin '%s'): %s"
             % (kind, (text or "").split("\n")[0][:140]))
         return False
@@ -2062,7 +2064,7 @@ def process_cycle(state, pool, pool_state):
             elif status == "submitted":
                 check_submitted(entry)
             elif status == "da_tra" and not entry.get("paid_notified"):
-                notify("[Pepper Hunter Doer] TIEN VE!\n%s\nLink: %s" % (entry["title"], url))
+                notify("[Pepper Hunter Doer] TIEN VE!\n%s\nLink: %s" % (entry["title"], url), kind="tienve")
                 entry["paid_notified"] = True
         except Exception as e:
             cycle_errors += 1
