@@ -17,6 +17,21 @@ mirror gia danh escrow):
       placeholder [X] duoc sanitize; repo < 30 ngay toan bai escrow ->
       bay; self_dispatch khong dispatch khi da co run khac dang active.
 
+Bo sung sau lenh hunt-only (18:59 + 19:01 11/11):
+  (h) KILL-SWITCH: mac dinh moi la outbound OFF (doc tu state/control.json,
+      fail-closed khi thieu/hong file). Keo moi co tien that -> cho_duyet +
+      dung 1 tin Telegram loai "choduyet", 0 POST; keo moi lam ngay
+      (first-PR) cung chi cho_duyet; submit/resend/make_apply bi
+      held_outbound_off; theo doi keo cu (applied -> assigned,
+      submitted -> cho_tra) van cap nhat state; tin Telegram "routine"
+      (duoc chon, nhan keo, don dang ngam...) bi gat, tin "incident" (chan
+      keo khong tien) van gui.
+  LUU Y: cac ca "gui that" cu (don sach gui nguyen van, resend thay
+  template roi gui, doan hoi tien) nay chi con y nghia khi outbound duoc
+  BAT CO Y bang control.json - harness bat outbound tuong minh cho rieng
+  cac khoi do (set_outbound(True)) roi tat lai ngay; ky vong cua tung ca
+  khong doi.
+
 Cach chay: python3 tests/harness_doer.py  (thoat 0 neu tat ca PASS)
 """
 import importlib.util, json, os, re, shutil, sys, tempfile
@@ -39,6 +54,7 @@ ISSUES = {}         # (owner, repo, num) -> raw issue dict
 COMMENTS = {}       # (owner, repo, num) -> [raw comment dict]
 REPOS = {}          # (owner, repo) -> raw repo dict
 REPO_ISSUES = {}    # (owner, repo) -> [raw issue dict]
+PRS = {}            # (owner, repo, num) -> raw pull-request dict
 GEMINI_TEXT = [""]
 
 
@@ -59,6 +75,10 @@ def fake_gh_api(method, path, obj=None):
             return 200, {"items": []}
         if path == "/user":
             return 200, {"login": "Luando-tester"}
+        m = re.match(r"/repos/([^/]+)/([^/]+)/pulls/(\d+)$", path or "")
+        if m:
+            d = PRS.get((m.group(1), m.group(2), int(m.group(3))))
+            return (200, d) if d else (404, {})
         key = _parse_issue_path(path)
         if key and "/comments" in path:
             return 200, COMMENTS.get(key, [])
@@ -103,6 +123,29 @@ def entry_for(owner, repo, num, title, budget=100.0, pack="", status="new"):
             "pack": pack, "status": status, "files": [],
             "type": "code", "mode": "cho_duoc_chon"}
 
+
+def set_outbound(on):
+    """Ghi state/control.json THAT (trong TMP) + nap lai vao doer.
+    Tra outbound_enabled() sau khi nap."""
+    os.makedirs(os.path.dirname(doer.CONTROL_PATH), exist_ok=True)
+    with open(doer.CONTROL_PATH, "w", encoding="utf-8") as f:
+        json.dump({"outbound": bool(on)}, f)
+    doer.load_control()
+    return doer.outbound_enabled()
+
+
+# ============================================================ (h0) CONTROL
+# TMP moi chua co control.json -> load_control phai OFF (fail-closed).
+check("(h) control: thieu file -> outbound OFF (fail-closed)",
+      doer.load_control().get("outbound") is False and not doer.outbound_enabled())
+check("(h) control: {\"outbound\": true} -> ON", set_outbound(True) is True)
+with open(doer.CONTROL_PATH, "w", encoding="utf-8") as f:
+    f.write("day khong phai json")
+check("(h) control: file hong -> OFF (fail-closed)",
+      doer.load_control().get("outbound") is False and not doer.outbound_enabled())
+check("(h) control: {\"outbound\": false} -> OFF", set_outbound(False) is False)
+# Tu day tro di mac dinh la OFF (hunt-only) - tru cac khoi "gui that" cu
+# duoc bat outbound tuong minh o ben duoi.
 
 # ================================================================ (d1) SS14
 SS14_KEY = ("space-wizards", "space-station-14", 44876)
@@ -208,7 +251,10 @@ ok = doer.resend_apply(e2)
 check("(b) resend_apply: dedupe -> True, 0 POST, apply_sent=True",
       ok is True and len(POSTS) == 0 and e2.get("apply_sent") is True, (ok, POSTS))
 
-# resend_apply KHONG trung: don bia -> gate thay template roi moi gui (0 text bia)
+# resend_apply KHONG trung: don bia -> gate thay template roi moi gui (0 text bia).
+# CA GUI THAT: chi con xay ra khi outbound duoc BAT CO Y -> bat tuong minh
+# cho khoi nay, tat lai ngay sau (mac dinh he la OFF/hunt-only).
+set_outbound(True)
 COMMENTS[DUP_KEY] = []
 POSTS.clear()
 e3 = entry_for(*DUP_KEY, ISSUES[DUP_KEY]["title"], budget=150.0, status="applied")
@@ -219,9 +265,12 @@ sent_body = (POSTS[0][1] or {}).get("body", "") if POSTS else ""
 check("(a) resend_apply: don bia bi thay bang template truoc khi gui",
       ok is True and len(POSTS) == 1 and "CUDA" not in sent_body and "experienced" not in sent_body,
       sent_body[:120])
+set_outbound(False)
 
 # ============================================================ (d) cac ca cu
-# Keo sach + don sach -> gui dung 1 comment, nguyen van
+# Keo sach + don sach -> gui dung 1 comment, nguyen van.
+# CA GUI THAT: bat outbound tuong minh cho ca khoi (d) gui don, tat lai sau.
+set_outbound(True)
 OK_KEY = ("acme", "report-tool", 13)
 ISSUES[OK_KEY] = raw_issue("Automate weekly report generation script ($150)",
                            "Write a Python script. Reward $150 USD via Opire.", labels=["bounty"])
@@ -255,6 +304,7 @@ doer.make_apply(e, POOL, POOL_STATE, doer.fetch_issue_info(e["url"]))
 sent_body = (POSTS[0][1] or {}).get("body", "") if POSTS else ""
 check("(d) keo chua ghi ngan sach: don co doan hoi tien",
       "exact bounty amount" in sent_body, sent_body[-100:])
+set_outbound(False)
 
 # Sanitize placeholder [X]
 check("(d) sanitize [X] days -> 3 days",
@@ -283,6 +333,132 @@ pr_safe, pr_bia = doer.gate_outbound_text(
     "This PR is by a developer experienced in CUDA kernel optimization.",
     {"title": "T", "url": "https://github.com/a/b/issues/1", "budget_usd": 1}, kind="pr")
 check("(a) gate PR body: bia -> safe_pr_body", bool(pr_bia) and "CUDA" not in pr_safe, pr_safe[:80])
+
+# ============================================================ (h) HUNT-ONLY
+# Outbound OFF: chi san + phan loai + theo doi. 0 POST trong moi ca duoi.
+set_outbound(False)
+
+# (h5) submit_github truc tiep: hard-return held_outbound_off, 0 POST
+H_SUB = entry_for("acme", "data-tools", 25, "Ship the data export feature ($200)",
+                  budget=200.0, status="working")
+POSTS.clear()
+r_sub = doer.submit_github(H_SUB)
+check("(h) submit_github khi OFF: held_outbound_off + 0 POST",
+      r_sub is False and len(POSTS) == 0 and H_SUB.get("outbound_held") == "held_outbound_off",
+      (r_sub, POSTS, H_SUB.get("outbound_held")))
+
+# (h6) make_apply truc tiep tren keo sach khi OFF: phan loai chay nhung
+# bi giu o chot chan - 0 POST, apply_sent=False, dau held_outbound_off
+H6_KEY = ("acme", "data-tools", 26)
+ISSUES[H6_KEY] = raw_issue("Automate weekly report generation script ($150)",
+                           "Write a Python script. Reward $150 USD via Opire.", labels=["bounty"])
+COMMENTS[H6_KEY] = []
+GEMINI_TEXT[0] = CLEAN_TEXT
+POSTS.clear()
+e = entry_for(*H6_KEY, ISSUES[H6_KEY]["title"], budget=150.0)
+doer.make_apply(e, POOL, POOL_STATE, doer.fetch_issue_info(e["url"]))
+check("(h) make_apply khi OFF: 0 POST, apply_sent=False, held_outbound_off",
+      len(POSTS) == 0 and e.get("apply_sent") is False
+      and e.get("outbound_held") == "held_outbound_off",
+      (POSTS, e.get("apply_sent"), e.get("outbound_held")))
+
+# (h7) resend_apply khi OFF (issue chua co comment cua minh): bi held
+# truoc POST - tra False, 0 POST, dau held_outbound_off
+e7h = entry_for(*DUP_KEY, ISSUES[DUP_KEY]["title"], budget=150.0, status="applied")
+e7h["files"] = ["deliverables/%s/APPLY.md" % e7h["slug"]]
+e7h["apply_sent"] = False
+POSTS.clear()
+ok7 = doer.resend_apply(e7h)
+check("(h) resend_apply khi OFF: held, 0 POST",
+      ok7 is False and len(POSTS) == 0 and e7h.get("outbound_held") == "held_outbound_off",
+      (ok7, POSTS, e7h.get("outbound_held")))
+
+# (h1) Vong day du: keo MOI sach, co tien that -> cho_duyet + dung 1 tin
+# Telegram loai choduyet (tin dang ky/backfill routine bi gat het)
+H1_KEY = ("acme", "data-tools", 21)
+ISSUES[H1_KEY] = raw_issue("Build a CSV data cleaning script ($300)",
+                           "Paid task: $300 USD via Opire for a Python script.", labels=["bounty"])
+h1_url = "https://github.com/%s/%s/issues/%d" % H1_KEY
+st_h1 = {h1_url: entry_for(*H1_KEY, ISSUES[H1_KEY]["title"], budget=300.0)}
+POSTS.clear()
+tg0 = len(TG)
+doer.process_cycle(st_h1, POOL, POOL_STATE)
+e_h1 = st_h1[h1_url]
+new_tg = TG[tg0:]
+check("(h) hunt-only: keo moi co tien that -> cho_duyet",
+      e_h1.get("status") == "cho_duyet", e_h1.get("status"))
+check("(h) hunt-only: keo cho_duyet - 0 POST ra ngoai", len(POSTS) == 0, POSTS)
+check("(h) hunt-only: dung 1 tin Telegram loai choduyet (CHO LUAN DUYET)",
+      len(new_tg) == 1 and "CHO LUAN DUYET" in new_tg[0], new_tg)
+
+# (h1b) Keo moi KHONG co tien that -> van phan loai skipped_nopay, 0 POST,
+# tin chan la loai incident (van duoc gui, dung 1 tin)
+H1B_KEY = ("acme", "data-tools", 22)
+ISSUES[H1B_KEY] = raw_issue("Improve the README wording",
+                            "Please polish the documentation.", labels=["documentation"])
+h1b_url = "https://github.com/%s/%s/issues/%d" % H1B_KEY
+st_h1b = {h1b_url: entry_for(*H1B_KEY, ISSUES[H1B_KEY]["title"], budget=None)}
+POSTS.clear()
+tg0 = len(TG)
+doer.process_cycle(st_h1b, POOL, POOL_STATE)
+e_h1b = st_h1b[h1b_url]
+new_tg = TG[tg0:]
+check("(h) hunt-only: keo khong tien that -> skipped_nopay (phan loai van chay)",
+      e_h1b.get("status") == "skipped_nopay", e_h1b.get("status"))
+check("(h) hunt-only: keo bi chan - 0 POST", len(POSTS) == 0, POSTS)
+check("(h) hunt-only: tin chan (incident) van bao dung 1 tin",
+      len(new_tg) == 1 and "KHONG CO TIN HIEU TIEN THAT" in new_tg[0], new_tg)
+
+# (h2) Keo moi lam ngay (issue noi ro "no assignment needed, just open a
+# PR") khi OFF: van chi cho_duyet - 0 POST, khong lam san pham
+H2_KEY = ("acme", "data-tools", 23)
+ISSUES[H2_KEY] = raw_issue("Add export feature - $200 bounty, no assignment needed, just open a PR",
+                           "Reward $200 USD. No assignment needed - just open a PR.", labels=["bounty"])
+h2_url = "https://github.com/%s/%s/issues/%d" % H2_KEY
+e_h2 = entry_for(*H2_KEY, ISSUES[H2_KEY]["title"], budget=200.0)
+e_h2["mode"] = "lam_ngay"
+st_h2 = {h2_url: e_h2}
+POSTS.clear()
+doer.process_cycle(st_h2, POOL, POOL_STATE)
+check("(h) hunt-only: keo first-PR van chi cho_duyet - 0 POST, khong san pham",
+      e_h2.get("status") == "cho_duyet" and len(POSTS) == 0 and e_h2.get("files") == [],
+      (e_h2.get("status"), POSTS, e_h2.get("files")))
+
+# (h3) Theo doi keo cu: applied -> duoc assign that -> state cap nhat
+# assigned, NHUNG khong lam san pham, 0 POST, tin DUOC CHON (routine) bi gat
+H3_KEY = ("acme", "data-tools", 24)
+ISSUES[H3_KEY] = raw_issue("Write API integration tests ($180)",
+                           "Reward $180 USD via Opire.", labels=["bounty"],
+                           assignees=["Luando-tester"])
+h3_url = "https://github.com/%s/%s/issues/%d" % H3_KEY
+e_h3 = entry_for(*H3_KEY, ISSUES[H3_KEY]["title"], budget=180.0, status="applied")
+e_h3["apply_sent"] = True
+e_h3["applied_at"] = doer.now_iso()
+st_h3 = {h3_url: e_h3}
+POSTS.clear()
+tg0 = len(TG)
+doer.process_cycle(st_h3, POOL, POOL_STATE)
+new_tg = TG[tg0:]
+check("(h) hunt-only: applied duoc assign -> state van cap nhat 'assigned'",
+      e_h3.get("status") == "assigned", e_h3.get("status"))
+check("(h) hunt-only: duoc chon - 0 POST, khong lam san pham",
+      len(POSTS) == 0 and e_h3.get("files") == [], (POSTS, e_h3.get("files")))
+check("(h) hunt-only: tin DUOC CHON (routine) bi gat - 0 tin Telegram",
+      len(new_tg) == 0, new_tg)
+
+# (h3b) Theo doi keo cu: submitted + PR da merged -> cho_tra
+H3B_KEY = ("acme", "data-tools", 27)
+PRS[H3B_KEY] = {"merged": True, "html_url": "https://github.com/acme/data-tools/pull/27"}
+h3b_url = "https://github.com/%s/%s/issues/%d" % H3B_KEY
+e_h3b = entry_for(*H3B_KEY, "Ship the data export feature ($200)", budget=200.0, status="submitted")
+e_h3b["pr_number"] = 27
+e_h3b["pr_url"] = "https://github.com/acme/data-tools/pull/27"
+st_h3b = {h3b_url: e_h3b}
+POSTS.clear()
+doer.process_cycle(st_h3b, POOL, POOL_STATE)
+check("(h) hunt-only: submitted co PR merged -> cho_tra (theo doi van chay)",
+      e_h3b.get("status") == "cho_tra" and len(POSTS) == 0,
+      (e_h3b.get("status"), POSTS))
 
 # ============================================================ single-flight
 CALLS = []
