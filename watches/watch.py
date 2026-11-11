@@ -11,9 +11,10 @@ commit ve repo sau moi vong co thay doi (+ heartbeat dinh ky).
 7 watch (moi watch 1 ham, cach ly loi tung watch - 1 nguon chet khong
 keo chet ca vong):
   1. synmerco     - bang viec Synmerco: heartbeat/readiness/intents moi;
-                    keo SACH -> BID NGAY theo luat gia 3 muc + lech ngan
-                    sach (Luan chot 07/11); tu them capability khi 412;
-                    vong lap ha gia theo doi thu. Can SYNMERCO_API_KEY.
+                    keo SACH -> BID NGAY gia that theo v69 (Luan chot
+                    12/11: mac dinh 85% ngan sach, khong ha gia duoi doi
+                    thu, khong vong lap ha gia); tu them capability khi
+                    412. Can SYNMERCO_API_KEY.
   2. cc0          - don hang CC0 storefront: doc KV qua index
                     meta:recent_job_ids (ban va KV-429 06/11), bao don
                     PAID moi + probe test + tripwire coverage. Chi doc;
@@ -320,35 +321,14 @@ def syn_classify(intent):
             return "clean", ok
     return "pending", "khong nhan dien duoc loai viec"
 
-def syn_price_sealed(budget_cents, intent):
-    """Luat gia 3 muc + lech ngan sach (Luan chot 07/11). Tra cents hoac None."""
-    try:
-        bids = int(intent.get("bidsCount") or intent.get("bids_count") or 0)
-    except Exception:
-        bids = 0
-    exp = intent.get("expiresAt") or ""
-    hours_left = None
-    try:
-        dt = datetime.fromisoformat(exp.replace("Z", "+00:00").replace(" ", "T", 1) if "T" not in exp else exp.replace("Z", "+00:00"))
-        hours_left = (dt - datetime.now(timezone.utc)).total_seconds() / 3600
-    except Exception:
-        pass
-    if bids >= 8 or (hours_left is not None and hours_left <= 2):
-        level = 50
-    elif bids <= 1 and (hours_left is None or hours_left > 48):
-        level = 70
-    else:
-        level = 60
-    budget_usd = budget_cents / 100.0
-    levels = [50, 60, 70]
-    i = levels.index(level)
-    if budget_usd <= 6:
-        i = min(i + 1, 2)
-    elif budget_usd >= 15:
-        i = max(i - 1, 0)
-    level = levels[i]
-    price = budget_cents * level // 100
-    return price, level
+def syn_price_real(budget_cents, intent):
+    """GIA THAT theo brief v69 (Luan chot 12/11/2026 - thay luat 3 muc 07/11
+    va bo vong lap ha gia): award tren keo Synmerco dang uu tien builder
+    chua tung duoc award, roi Synmerco Score cao thang; gia chi quyet khi
+    diem bang nhau -> bid re khong mua them cua thang. Gia that = mac dinh
+    85% ngan sach (gop truoc phi 3.25%, rong ~82.24%). Tra (price, pct)."""
+    price = budget_cents * 85 // 100
+    return price, 85
 
 def syn_lowest_rival(detail, my_did=MY_DID):
     tops = detail.get("topBids") or detail.get("top_bids") or []
@@ -465,15 +445,8 @@ def watch_synmerco(st, alerts):
             continue
         # SACH -> bid ngay theo luat gia
         msg = syn_bid_message(full)
-        lowest = syn_lowest_rival(full)
-        basis = ""
-        if lowest:
-            step = max(11, int(lowest * 0.05))
-            price = lowest - step
-            basis = "thay gia doi thu thap nhat $%.2f - ha %dc" % (lowest / 100, step)
-        else:
-            price, level = syn_price_sealed(budget, full)
-            basis = "bid kin - muc %d%% ngan sach (luat 3 muc + lech 07/11)" % level
+        price, level = syn_price_real(budget, full)
+        basis = "bid gia that %d%% ngan sach theo v69 (Luan chot 12/11) - khong ha gia duoi doi thu" % level
         if price < 100:
             if budget > 100:
                 price = 100
@@ -524,7 +497,7 @@ def watch_synmerco(st, alerts):
         budget = p.get("budget_cents")
         if not budget:
             continue
-        price, level = syn_price_sealed(int(budget), full)
+        price, level = syn_price_real(int(budget), full)
         if price < 100 or price >= int(budget):
             continue
         msg = syn_bid_message(full)
@@ -535,7 +508,7 @@ def watch_synmerco(st, alerts):
                                  "title": p.get("title"), "budget_cents": budget, "history": [price]}
             alerts.append("[Synmerco] TU BID THEO LUAT QUA HAN 30 PHUT (Luan duyet 27/10): %s - $%.2f (bidId %s)" % (p.get("title"), price / 100, bid_id))
             del w["pending"][iid]
-    # theo doi bid cua minh: thang/thua + vong lap ha gia
+    # theo doi bid cua minh: thang/thua (gia giu nguyen - khong con vong lap ha gia)
     for iid, b in list(w.get("my_bids", {}).items()):
         std, det = http_curl("GET", SYN_BASE + "/v1/intents/" + iid, syn_headers(key))
         if std != 200 or not isinstance(det, dict):
@@ -557,26 +530,8 @@ def watch_synmerco(st, alerts):
         if status in ("closed", "expired", "cancelled", "canceled"):
             del w["my_bids"][iid]
             continue
-        # ha gia theo doi thu (chi khi thay gia that)
-        lowest = syn_lowest_rival(full)
-        if lowest and lowest < int(b.get("amount_cents") or 0):
-            step = max(11, int(lowest * 0.05))
-            new_price = lowest - step
-            if new_price < 100:
-                if w["underbid_reject_alerted"].get(iid) != "floor":
-                    alerts.append("[Synmerco] DOI THU EP GIA DUOI SAN $1.00 cho '%s' (thap nhat $%.2f) - dung vong lap ha gia." % (b.get("title"), lowest / 100))
-                    w["underbid_reject_alerted"][iid] = "floor"
-                continue
-            stb, db = syn_post_bid(key, iid, new_price, b.get("message") or syn_bid_message(full))
-            if stb in (200, 201):
-                old = b["amount_cents"]
-                b["amount_cents"] = new_price
-                b.setdefault("history", []).append(new_price)
-                alerts.append("[Synmerco] HA GIA THEO VONG LAP (Luan duyet 01/11): %s - $%.2f -> $%.2f (doi thu thap nhat $%.2f)" % (b.get("title"), old / 100, new_price / 100, lowest / 100))
-            else:
-                if w["underbid_reject_alerted"].get(iid) != stb:
-                    alerts.append("[Synmerco] Ha gia bi API tu choi (HTTP %s) cho '%s' - khong lanh, khong thu lai cung luot." % (stb, b.get("title")))
-                    w["underbid_reject_alerted"][iid] = stb
+        # Vong lap ha gia DA BO (Luan chot 12/11 theo v69): bid gia that,
+        # giu nguyen gia da nop cho toi khi intent matched/dong/het han.
     # intent dang giu hang (vd bid 2590 - escrow funded cho giao bai)
     for iid, info in list(w.get("watch_ids", {}).items()):
         std, det = http_curl("GET", SYN_BASE + "/v1/intents/" + iid, syn_headers(key))
