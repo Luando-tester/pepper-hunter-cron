@@ -19,16 +19,23 @@ mirror gia danh escrow):
 
 Bo sung sau lenh hunt-only (18:59 + 19:01 11/11):
   (h) KILL-SWITCH: mac dinh moi la outbound OFF (doc tu state/control.json,
-      fail-closed khi thieu/hong file). Keo moi co tien that -> cho_duyet +
-      dung 1 tin Telegram loai "choduyet", 0 POST; keo moi lam ngay
-      (first-PR) cung chi cho_duyet; submit/resend/make_apply bi
-      held_outbound_off; theo doi keo cu (applied -> assigned,
-      submitted -> cho_tra) van cap nhat state; phat hien DUOC GIAO viec
-      thi bao Telegram "DUOC GIAO KEO" (loai "assigned") nhung khong tu
-      lam/tu nop; tin Telegram "routine" (nhan keo, thua, don dang ngam...)
-      bi gat, tin "incident" (chan keo khong tien) van gui. Wording chi
-      duoc xung la cong cu tu dong cua du an ca nhan - khong "independent
-      researcher", khong dong vai nguoi.
+      fail-closed khi thieu/hong file). Keo moi co tien that -> tu_xu (TU
+      XU LUON, khong cho duyet - lenh Luan 05:23 12/11): soan san APPLY.md
+      tu template an toan + ghi verify_note + dung 1 tin Telegram loai
+      "choduyet" bao da tu xu, 0 POST; keo moi lam ngay (first-PR) cung
+      tu_xu; keo di san cho_duyet tu dong chuyen sang tu_xu, khong bao
+      trung; tu_xu van theo doi (dong -> lost, duoc giao -> assigned +
+      "DUOC GIAO KEO"); submit/resend/make_apply bi held_outbound_off;
+      theo doi keo cu (applied -> assigned, submitted -> cho_tra) van cap
+      nhat state; phat hien DUOC GIAO viec thi bao Telegram "DUOC GIAO
+      KEO" (loai "assigned") nhung khong tu lam/tu nop; tin Telegram
+      "routine" (nhan keo, thua, don dang ngam...) bi gat, tin "incident"
+      (chan keo khong tien) van gui. Wording chi duoc xung la cong cu tu
+      dong cua du an ca nhan - khong "independent researcher", khong dong
+      vai nguoi.
+      LUU Y DIEU CHINH 05:23 12/11: 2 ca (h1)/(h2) doi ky vong tu
+      cho_duyet sang tu_xu (bo buoc cho duyet) - day la thay doi hanh vi
+      co chu dich theo lenh chu, khong phai long cong.
   LUU Y: cac ca "gui that" cu (don sach gui nguyen van, resend thay
   template roi gui, doan hoi tien) nay chi con y nghia khi outbound duoc
   BAT CO Y bang control.json - harness bat outbound tuong minh cho rieng
@@ -376,8 +383,10 @@ check("(h) resend_apply khi OFF: held, 0 POST",
       ok7 is False and len(POSTS) == 0 and e7h.get("outbound_held") == "held_outbound_off",
       (ok7, POSTS, e7h.get("outbound_held")))
 
-# (h1) Vong day du: keo MOI sach, co tien that -> cho_duyet + dung 1 tin
-# Telegram loai choduyet (tin dang ky/backfill routine bi gat het)
+# (h1) Vong day du: keo MOI sach, co tien that -> TU XU (khong cho duyet,
+# lenh 05:23 12/11): soan san APPLY.md tu template an toan + verify_note
+# + dung 1 tin Telegram loai choduyet bao da tu xu (tin dang ky/backfill
+# routine bi gat het)
 H1_KEY = ("acme", "data-tools", 21)
 ISSUES[H1_KEY] = raw_issue("Build a CSV data cleaning script ($300)",
                            "Paid task: $300 USD via Opire for a Python script.", labels=["bounty"])
@@ -388,11 +397,22 @@ tg0 = len(TG)
 doer.process_cycle(st_h1, POOL, POOL_STATE)
 e_h1 = st_h1[h1_url]
 new_tg = TG[tg0:]
-check("(h) hunt-only: keo moi co tien that -> cho_duyet",
-      e_h1.get("status") == "cho_duyet", e_h1.get("status"))
-check("(h) hunt-only: keo cho_duyet - 0 POST ra ngoai", len(POSTS) == 0, POSTS)
-check("(h) hunt-only: dung 1 tin Telegram loai choduyet (CHO LUAN DUYET)",
-      len(new_tg) == 1 and "CHO LUAN DUYET" in new_tg[0], new_tg)
+check("(h) hunt-only: keo moi co tien that -> tu_xu (khong cho duyet)",
+      e_h1.get("status") == "tu_xu", e_h1.get("status"))
+check("(h) hunt-only: keo tu_xu - 0 POST ra ngoai", len(POSTS) == 0, POSTS)
+check("(h) hunt-only: dung 1 tin Telegram loai choduyet (DA TU XU - KHONG CHO DUYET)",
+      len(new_tg) == 1 and "DA TU XU" in new_tg[0] and "KHONG CHO DUYET" in new_tg[0], new_tg)
+_h1_apply = [f for f in (e_h1.get("files") or []) if f.endswith("APPLY.md")]
+_h1_doc = ""
+if _h1_apply and os.path.exists(os.path.join(TMP, _h1_apply[0])):
+    with open(os.path.join(TMP, _h1_apply[0]), encoding="utf-8") as _f:
+        _h1_doc = _f.read()
+check("(t) tu_xu: APPLY.md da soan san tu template an toan (chi ho so that)",
+      len(_h1_apply) == 1 and "automated tool/agent" in _h1_doc and "CUDA" not in _h1_doc,
+      (_h1_apply, _h1_doc[:120]))
+check("(t) tu_xu: verify_note ghi tin hieu tien + kenh tra thay trong issue",
+      "$300" in (e_h1.get("verify_note") or "") and "opire" in (e_h1.get("verify_note") or ""),
+      e_h1.get("verify_note"))
 
 # (h1b) Keo moi KHONG co tien that -> van phan loai skipped_nopay, 0 POST,
 # tin chan la loai incident (van duoc gui, dung 1 tin)
@@ -413,7 +433,8 @@ check("(h) hunt-only: tin chan (incident) van bao dung 1 tin",
       len(new_tg) == 1 and "KHONG CO TIN HIEU TIEN THAT" in new_tg[0], new_tg)
 
 # (h2) Keo moi lam ngay (issue noi ro "no assignment needed, just open a
-# PR") khi OFF: van chi cho_duyet - 0 POST, khong lam san pham
+# PR") khi OFF: van TU XU nhu moi keo co tien that - 0 POST, chi soan san
+# APPLY.md, TUYET DOI khong lam san pham (khong SOLUTION/SAN-PHAM)
 H2_KEY = ("acme", "data-tools", 23)
 ISSUES[H2_KEY] = raw_issue("Add export feature - $200 bounty, no assignment needed, just open a PR",
                            "Reward $200 USD. No assignment needed - just open a PR.", labels=["bounty"])
@@ -423,9 +444,12 @@ e_h2["mode"] = "lam_ngay"
 st_h2 = {h2_url: e_h2}
 POSTS.clear()
 doer.process_cycle(st_h2, POOL, POOL_STATE)
-check("(h) hunt-only: keo first-PR van chi cho_duyet - 0 POST, khong san pham",
-      e_h2.get("status") == "cho_duyet" and len(POSTS) == 0 and e_h2.get("files") == [],
-      (e_h2.get("status"), POSTS, e_h2.get("files")))
+_h2_files = e_h2.get("files") or []
+check("(h) hunt-only: keo first-PR -> tu_xu - 0 POST, chi APPLY.md, khong san pham",
+      e_h2.get("status") == "tu_xu" and len(POSTS) == 0
+      and any(f.endswith("APPLY.md") for f in _h2_files)
+      and not any(("SOLUTION" in f or "SAN-PHAM" in f) for f in _h2_files),
+      (e_h2.get("status"), POSTS, _h2_files))
 
 # (h3) Theo doi keo cu: applied -> duoc assign that -> state cap nhat
 # assigned + dung 1 tin DUOC GIAO KEO, NHUNG khong lam san pham, 0 POST
@@ -479,6 +503,80 @@ check("(h) hunt-only: keo phat hien da giao san -> assigned + 1 tin DUOC GIAO KE
       ent_h4 is not None and ent_h4.get("status") == "assigned"
       and len(new_tg) == 1 and "DUOC GIAO KEO" in new_tg[0],
       (ent_h4 and ent_h4.get("status"), new_tg))
+
+# ============================================================ (t) TU XU
+# (t1) Keo DI SAN cho_duyet (da bao luc cho duyet, choduyet_notified=True)
+# -> tu dong chuyen tu_xu + soan san APPLY.md, KHONG bao trung
+T1_KEY = ("acme", "data-tools", 29)
+ISSUES[T1_KEY] = raw_issue("Build a log parser script ($120)",
+                           "Paid task: $120 USD via Opire.", labels=["bounty"])
+t1_url = "https://github.com/%s/%s/issues/%d" % T1_KEY
+e_t1 = entry_for(*T1_KEY, ISSUES[T1_KEY]["title"], budget=120.0, status="cho_duyet")
+e_t1["cho_duyet_at"] = doer.now_iso()
+e_t1["choduyet_notified"] = True
+st_t1 = {t1_url: e_t1}
+POSTS.clear()
+tg0 = len(TG)
+doer.process_cycle(st_t1, POOL, POOL_STATE)
+new_tg = TG[tg0:]
+check("(t) di san cho_duyet da bao -> tu_xu + APPLY.md, 0 POST",
+      e_t1.get("status") == "tu_xu" and len(POSTS) == 0
+      and any(f.endswith("APPLY.md") for f in (e_t1.get("files") or [])),
+      (e_t1.get("status"), POSTS, e_t1.get("files")))
+check("(t) di san cho_duyet da bao -> KHONG bao trung (0 tin Telegram moi)",
+      len(new_tg) == 0, new_tg)
+
+# (t2) Keo DI SAN cho_duyet CHUA tung bao -> chuyen tu_xu + dung 1 tin TU XU
+T2_KEY = ("acme", "data-tools", 30)
+ISSUES[T2_KEY] = raw_issue("Write a data migration script ($140)",
+                           "Paid task: $140 USD via Opire.", labels=["bounty"])
+t2_url = "https://github.com/%s/%s/issues/%d" % T2_KEY
+e_t2 = entry_for(*T2_KEY, ISSUES[T2_KEY]["title"], budget=140.0, status="cho_duyet")
+e_t2["cho_duyet_at"] = doer.now_iso()
+st_t2 = {t2_url: e_t2}
+POSTS.clear()
+tg0 = len(TG)
+doer.process_cycle(st_t2, POOL, POOL_STATE)
+new_tg = TG[tg0:]
+check("(t) di san cho_duyet chua bao -> tu_xu + dung 1 tin TU XU",
+      e_t2.get("status") == "tu_xu" and len(new_tg) == 1 and "DA TU XU" in new_tg[0],
+      (e_t2.get("status"), new_tg))
+
+# (t3) Keo tu_xu duoc assign that -> assigned + dung 1 tin DUOC GIAO KEO,
+# 0 POST, khong lam san pham (files giu nguyen chi APPLY.md)
+T3_KEY = ("acme", "data-tools", 31)
+ISSUES[T3_KEY] = raw_issue("Build an RSS summarizer script ($160)",
+                           "Paid task: $160 USD via Opire.", labels=["bounty"],
+                           assignees=["Luando-tester"])
+t3_url = "https://github.com/%s/%s/issues/%d" % T3_KEY
+e_t3 = entry_for(*T3_KEY, ISSUES[T3_KEY]["title"], budget=160.0, status="tu_xu")
+e_t3["files"] = ["deliverables/%s/APPLY.md" % e_t3["slug"]]
+e_t3["tu_xu_at"] = doer.now_iso()
+st_t3 = {t3_url: e_t3}
+POSTS.clear()
+tg0 = len(TG)
+doer.process_cycle(st_t3, POOL, POOL_STATE)
+new_tg = TG[tg0:]
+check("(t) tu_xu duoc giao -> assigned + dung 1 tin DUOC GIAO KEO",
+      e_t3.get("status") == "assigned" and len(new_tg) == 1 and "DUOC GIAO KEO" in new_tg[0],
+      (e_t3.get("status"), new_tg))
+check("(t) tu_xu duoc giao -> 0 POST, khong lam san pham",
+      len(POSTS) == 0 and e_t3.get("files") == ["deliverables/%s/APPLY.md" % e_t3["slug"]],
+      (POSTS, e_t3.get("files")))
+
+# (t4) Keo tu_xu ma issue da dong -> lost, 0 POST
+T4_KEY = ("acme", "data-tools", 32)
+ISSUES[T4_KEY] = raw_issue("Build a CSV merger script ($110)",
+                           "Paid task: $110 USD via Opire.", labels=["bounty"], state="closed")
+t4_url = "https://github.com/%s/%s/issues/%d" % T4_KEY
+e_t4 = entry_for(*T4_KEY, ISSUES[T4_KEY]["title"], budget=110.0, status="tu_xu")
+e_t4["tu_xu_at"] = doer.now_iso()
+st_t4 = {t4_url: e_t4}
+POSTS.clear()
+doer.process_cycle(st_t4, POOL, POOL_STATE)
+check("(t) tu_xu + issue da dong -> lost, 0 POST",
+      e_t4.get("status") == "lost" and len(POSTS) == 0,
+      (e_t4.get("status"), POSTS))
 
 # Wording: ho so that + template an toan khong con xung "independent
 # researcher" / nguoi that - chi la cong cu tu dong cua du an ca nhan
