@@ -563,7 +563,8 @@
   "apply_mode": "gemini (key #1, gemini-3.5-flash-lite)",
   "applied_at": "2026-11-10T21:08:31.010673+00:00",
   "apply_sent": true,
-  "apply_comment_url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4277#issuecomment-6779309694"
+  "apply_comment_url": "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4277#issuecomment-6779309694",
+  "note": "Escrow $450 USDC tren title nhung CHUA duoc maintainer xac nhan cong khai (genesisandme hoi 06:08 11/11 chua tra loi) - giu pending, chua lam."
  },
  "https://github.com/zhangjiayang6835-cyber/bounty-plaza/issues/4275": {
   "title": "[Bounty] 💎 [Escrowed $450 USDC] 24-Vector Conformance Suite: Streaming MCP SSE Chunk Boun",
@@ -611,5 +612,80 @@
   "apply_blocked": "PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo",
   "apply_comment_url": "https://github.com/Conxian/conxian-gateway/issues/828#issuecomment-6768321592",
   "note": "FALSE POSITIVE: 'bounty' trong issue nay la co che trong game SS14, khong phai bounty tra tien. Don sai da XOA 07:3x 11/11, cam dang ky lai."
+ },
+ "https://github.com/andrewsiah/agentswarm-data-tasks/issues/129": {
+  "title": "Fix first match in Python",
+  "url": "https://github.com/andrewsiah/agentswarm-data-tasks/issues/129",
+  "slug": "andrewsiah-agentswarm-data-tasks-129",
+  "budget_usd": null,
+  "pack": "## Overview **Priority:** `P0` **QA Bounty:** Cross-Model API Compatibility Test whether different models handle identical API requests consistently, including streaming, tool calls, structured outputs, and errors. ## What Needs Testing - Send identical OpenAI-compatible (`/v1/chat/completions`) and Anthropic-compatible (`/v1/messages`) payloads across all major model families (Zen, Enso, Kai, Claude, GPT, Gemini, Qwen, DeepSeek, Llama). - Verify consistent SSE streaming chunk structure (`data: {...}`, `delta.content`, `delta.tool_calls`, `finish_reason`, `data: [DONE]`). - Verify consistent t",
+  "status": "assigned",
+  "created_at": "2026-11-10T12:15:00.876500+00:00",
+  "updated_at": "2026-11-10T13:16:22.905630+00:00",
+  "files": [
+   "deliverables/hanzoai-ai-138/APPLY.md"
+  ],
+  "type": "code",
+  "mode": "lam_ngay",
+  "mode_reason": "maintainer noi ro: first PR pass check + source review thi merge - lam ngay, dua toc do",
+  "apply_mode": "gemini (key #1, gemini-3.5-flash-lite)",
+  "applied_at": "2026-11-10T12:15:16.839481+00:00",
+  "apply_sent": true,
+  "notified_registered": true,
+  "notified_started": true,
+  "apply_send_tried_at": "2026-11-10T13:16:21.383130+00:00",
+  "apply_blocked": "PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo",
+  "apply_comment_url": "https://github.com/hanzoai/ai/issues/138#issuecomment-6768322193",
+  "note": "Maintainer andrewsiah 07:35 11/11: 'it is yours to try' - claims khong chan nguoi khac, PR dau tien pass check thi merge. Checker: tasks/first-match/check.py theo pinned commit trong issue."
+ },
+ "https://github.com/andrewsiah/agentswarm-remote/issues/6": {
+  "title": "Add a Korean README for agentswarm-remote",
+  "url": "https://github.com/andrewsiah/agentswarm-remote/issues/6",
+  "slug": "andrewsiah-agentswarm-remote-6",
+  "budget_usd": null,
+  "pack": "## Overview **Priority:** `P0` **QA Bounty:** Cross-Model API Compatibility Test whether different models handle identical API requests consistently, including streaming, tool calls, structured outputs, and errors. ## What Needs Testing - Send identical OpenAI-compatible (`/v1/chat/completions`) and Anthropic-compatible (`/v1/messages`) payloads across all major model families (Zen, Enso, Kai, Claude, GPT, Gemini, Qwen, DeepSeek, Llama). - Verify consistent SSE streaming chunk structure (`data: {...}`, `delta.content`, `delta.tool_calls`, `finish_reason`, `data: [DONE]`). - Verify consistent t",
+  "status": "lost",
+  "created_at": "2026-11-10T12:15:00.876500+00:00",
+  "updated_at": "2026-11-10T13:16:22.905630+00:00",
+  "files": [
+   "deliverables/hanzoai-ai-138/APPLY.md"
+  ],
+  "type": "code",
+  "mode": "cho_duoc_chon",
+  "mode_reason": "khong ro dau hieu mo tu do -> mac dinh cho duoc chon (an toan)",
+  "apply_mode": "gemini (key #1, gemini-3.5-flash-lite)",
+  "applied_at": "2026-11-10T12:15:16.839481+00:00",
+  "apply_sent": true,
+  "notified_registered": true,
+  "notified_started": true,
+  "apply_send_tried_at": "2026-11-10T13:16:21.383130+00:00",
+  "apply_blocked": "PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo",
+  "apply_comment_url": "https://github.com/hanzoai/ai/issues/138#issuecomment-6768322193",
+  "note": "BO: maintainer xac nhan Reward: Unpaid - site balances closed-loop, khong rut tien that. Khong lam, khong PR."
+ },
+ "https://github.com/agenticgigs/skills/issues/7": {
+  "title": "claims_open includes unreachable BountyBook jobs and archived issues",
+  "url": "https://github.com/agenticgigs/skills/issues/7",
+  "slug": "agenticgigs-skills-7",
+  "budget_usd": null,
+  "pack": "## Overview **Priority:** `P0` **QA Bounty:** Cross-Model API Compatibility Test whether different models handle identical API requests consistently, including streaming, tool calls, structured outputs, and errors. ## What Needs Testing - Send identical OpenAI-compatible (`/v1/chat/completions`) and Anthropic-compatible (`/v1/messages`) payloads across all major model families (Zen, Enso, Kai, Claude, GPT, Gemini, Qwen, DeepSeek, Llama). - Verify consistent SSE streaming chunk structure (`data: {...}`, `delta.content`, `delta.tool_calls`, `finish_reason`, `data: [DONE]`). - Verify consistent t",
+  "status": "applied",
+  "created_at": "2026-11-10T12:15:00.876500+00:00",
+  "updated_at": "2026-11-10T13:16:22.905630+00:00",
+  "files": [
+   "deliverables/hanzoai-ai-138/APPLY.md"
+  ],
+  "type": "code",
+  "mode": "cho_duoc_chon",
+  "mode_reason": "khong ro dau hieu mo tu do -> mac dinh cho duoc chon (an toan)",
+  "apply_mode": "gemini (key #1, gemini-3.5-flash-lite)",
+  "applied_at": "2026-11-10T12:15:16.839481+00:00",
+  "apply_sent": true,
+  "notified_registered": true,
+  "notified_started": true,
+  "apply_send_tried_at": "2026-11-10T13:16:21.383130+00:00",
+  "apply_blocked": "PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo",
+  "apply_comment_url": "https://github.com/hanzoai/ai/issues/138#issuecomment-6768322193",
+  "note": "Doi thu genesisandme cung xin lam, dang hoi maintainer xac nhan issue con open/chua archived/con payment khong. Chua co hoi am - giu pending, khong lam truoc."
  }
 }
