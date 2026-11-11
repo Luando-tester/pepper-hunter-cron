@@ -670,7 +670,7 @@
   "slug": "agenticgigs-skills-7",
   "budget_usd": null,
   "pack": "## Overview **Priority:** `P0` **QA Bounty:** Cross-Model API Compatibility Test whether different models handle identical API requests consistently, including streaming, tool calls, structured outputs, and errors. ## What Needs Testing - Send identical OpenAI-compatible (`/v1/chat/completions`) and Anthropic-compatible (`/v1/messages`) payloads across all major model families (Zen, Enso, Kai, Claude, GPT, Gemini, Qwen, DeepSeek, Llama). - Verify consistent SSE streaming chunk structure (`data: {...}`, `delta.content`, `delta.tool_calls`, `finish_reason`, `data: [DONE]`). - Verify consistent t",
-  "status": "applied",
+  "status": "lost",
   "created_at": "2026-11-10T12:15:00.876500+00:00",
   "updated_at": "2026-11-10T13:16:22.905630+00:00",
   "files": [
@@ -687,7 +687,7 @@
   "apply_send_tried_at": "2026-11-10T13:16:21.383130+00:00",
   "apply_blocked": "PAT fine-grained khong comment duoc repo nguoi khac (HTTP 403) - can classic PAT scope public_repo",
   "apply_comment_url": "https://github.com/hanzoai/ai/issues/138#issuecomment-6768322193",
-  "note": "Doi thu genesisandme cung xin lam, dang hoi maintainer xac nhan issue con open/chua archived/con payment khong. Chua co hoi am - giu pending, khong lam truoc."
+  "note": "tac gia epistemedeus lam ro cong khai 18:07 11/11: day la bug report, KHONG phai bounty - so $1,000 chi la trich dan listing FinMind cu, chua bao gio duoc fund hay giao viec; comment don cua minh da duoc agent cha xoa tay"
  },
  "https://github.com/alibaba/page-agent/issues/770": {
   "title": "[Nautilus] Invitation to join the agent platform",
