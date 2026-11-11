@@ -53,6 +53,23 @@ kiem chung truoc gui cung chan. (4) SINGLE-FLIGHT: self_dispatch kiem tra
 run doer.yml dang active truoc khi dispatch (cong sau: concurrency group
 trong doer.yml).
 
+HUNT-ONLY (lenh Luan 18:59 11/11, sau su co bia don hang loat duoi ten that
+cua Luan): doer chuyen sang CHI SAN KEO - TUYET DOI khong tu gui don xin
+viec, comment claim/follow-up hay mo PR tren GitHub nua. Kill-switch nam o
+state/control.json ({"outbound": false}), doc lai o DAU MOI VONG; file
+thieu/hong/khong doc duoc -> outbound OFF (fail-closed). Moi duong POST ra
+GitHub (make_apply, resend_apply, submit_github) deu co chot chan
+outbound_guard() tra "held_outbound_off" va gui 0 request khi OFF. Keo moi
+qua kiem chung tien that -> trang thai cho_duyet (cho Luan duyet) + dung 1
+tin Telegram loai "choduyet"; theo doi keo cu (assign/merge/dong) van chay
+binh thuong. Muon mo lai outbound BAT BUOC sua control.json thanh
+{"outbound": true} roi commit - hanh dong co y, khong co duong tu bat.
+Kem lenh 19:01 11/11 (he bao qua nhieu): o che do hunt-only, Telegram CHI
+nhan tin loai "choduyet" va "incident" (su co that: loi toan vong, cong
+chan keo bay/khong tien); moi tin thuong (nhan keo, bat dau xu ly, duoc
+chon, thua, het han, da nop, tien ve, don dang ngam...) bi gat qua notify(),
+chi ghi log. STATUS.md van commit nhu cu (khong phai thong bao).
+
 MAY TRANG THAI (luan chot 18:01 10/11 - nhieu keo phai THANG/DUOC CHON truoc):
   mode=lam_ngay      : CHI khi issue NOI RO moi lam ngay (OPEN_SIGNALS:
                        "first pr", "no assignment needed", "just open a pr",
@@ -301,8 +318,8 @@ def block_presend(entry, reason):
     entry["note"] = "kiem chung truoc gui chan: " + reason
     log("CHAN GUI (kiem chung truoc gui) %s: %s" % (entry["url"], reason))
     if not entry.get("nopay_notified"):
-        if telegram_send("[Pepper Hunter Doer] BO QUA KEO - KHONG CO TIN HIEU TIEN THAT\n%s\nLink: %s\nLy do: %s"
-                         % (entry["title"], entry["url"], reason)):
+        if notify("[Pepper Hunter Doer] BO QUA KEO - KHONG CO TIN HIEU TIEN THAT\n%s\nLink: %s\nLy do: %s"
+                  % (entry["title"], entry["url"], reason), kind="incident"):
             entry["nopay_notified"] = True
 
 
@@ -311,6 +328,51 @@ DOER_ONCE = os.environ.get("DOER_ONCE") == "1"
 DOER_GIT = os.environ.get("DOER_GIT", "1" if IN_ACTIONS else "0") == "1"
 DOER_DISPATCH = os.environ.get("DOER_DISPATCH", "1" if IN_ACTIONS else "0") == "1"
 PR_DRAFT = os.environ.get("DOER_PR_DRAFT", "1") != "0"
+
+# --- KILL-SWITCH HUNT-ONLY (lenh Luan 18:59 11/11): outbound (gui don /
+# claim / follow-up / PR len GitHub) chi bat khi state/control.json ghi ro
+# {"outbound": true}. Doc lai o dau moi vong (load_control trong
+# process_cycle); file thieu/hong/loi doc -> OFF (fail-closed). Bien
+# _CONTROL chi la ban cache trong phien; nguon su that la file da commit.
+CONTROL_PATH = os.path.join(BASE_DIR, "state", "control.json")
+_CONTROL = {"outbound": False}
+
+
+def load_control():
+    """Doc lai state/control.json. Tra dict control hien tai. Fail-closed:
+    moi loi doc/parse, hoac outbound khong phai dung gia tri true, deu OFF."""
+    global _CONTROL
+    ctl = {"outbound": False}
+    try:
+        with open(CONTROL_PATH, encoding="utf-8") as f:
+            d = json.load(f)
+        if isinstance(d, dict) and d.get("outbound") is True:
+            ctl = {"outbound": True}
+    except Exception as e:
+        log("control.json khong doc duoc (%s) -> outbound OFF (fail-closed)" % e)
+    _CONTROL = ctl
+    return _CONTROL
+
+
+def outbound_enabled():
+    return bool(_CONTROL.get("outbound"))
+
+
+def outbound_guard(entry, action):
+    """Chot chan cung o MOI duong POST ra GitHub. Outbound OFF -> ghi dau
+    held_outbound_off len entry + log, tra False de ham goi dung ngay,
+    gui DUNG 0 request. Outbound ON -> xoa dau held cu (neu co), tra True."""
+    if outbound_enabled():
+        for k in ("outbound_held", "outbound_held_action", "outbound_held_at"):
+            entry.pop(k, None)
+        return True
+    entry["outbound_held"] = "held_outbound_off"
+    entry["outbound_held_action"] = action
+    entry["outbound_held_at"] = now_iso()
+    log("HELD outbound_off: chan %s cho %s (hunt-only - khong gui gi ra ngoai)"
+        % (action, entry.get("url")))
+    return False
+
 
 ASK_MONEY_EN = ("Before I begin, could you please confirm: 1) the exact bounty amount, "
                 "2) how it is paid (for example USDC to a wallet, or through this platform) "
@@ -452,6 +514,22 @@ def telegram_send(text):
         if not ok:
             log("Telegram loi (HTTP %s): %s" % (st, str(raw)[:160]))
     return ok_main
+
+
+# --- Cong thong bao Telegram theo che do (kem hunt-only, lenh Luan 19:01
+# 11/11 - he bao qua nhieu): khi outbound OFF (hunt-only), Telegram CHI
+# nhan 2 loai tin: "choduyet" (keo moi co tien that dang cho Luan duyet)
+# va "incident" (su co that: loi toan vong cua chuoi, cong chan keo bay /
+# keo khong tien that). Moi tin "routine" (nhan keo moi, bat dau xu ly,
+# duoc chon, thua nguoi khac, het han cho, da nop bai, tien ve, don dang
+# ngam, hoi phuc kenh...) bi GAT - chi ghi log, khong gui. Outbound ON thi
+# moi tin gui nhu cu. STATUS.md khong qua cong nay (chi la file commit).
+def notify(text, kind="routine"):
+    if not outbound_enabled() and kind not in ("choduyet", "incident"):
+        log("Telegram BI GAT (hunt-only, tin '%s'): %s"
+            % (kind, (text or "").split("\n")[0][:140]))
+        return False
+    return telegram_send(text)
 
 
 def pat_fingerprint():
@@ -633,8 +711,8 @@ def notify_started(entry):
     """Su kien Telegram: BAT DAU XU LY (gui 1 lan duy nhat, co co trong state)."""
     if entry.get("notified_started"):
         return
-    if telegram_send("[Pepper Hunter Doer] BAT DAU XU LY: %s\nLink: %s"
-                     % (entry["title"], entry["url"])):
+    if notify("[Pepper Hunter Doer] BAT DAU XU LY: %s\nLink: %s"
+              % (entry["title"], entry["url"])):
         entry["notified_started"] = True
 
 
@@ -684,8 +762,8 @@ def register_deal(state, deal):
     state[url] = entry
     if entry["status"] in ("new", "assigned"):
         budget_txt = ("$" + str(entry["budget_usd"])) if entry.get("budget_usd") else "chua ghi"
-        if telegram_send("[Pepper Hunter Doer] NHAN KEO MOI VAO XU LY: %s | mode: %s | ngan sach: %s\nLink: %s"
-                         % (entry["title"], entry.get("mode", "?"), budget_txt, url)):
+        if notify("[Pepper Hunter Doer] NHAN KEO MOI VAO XU LY: %s | mode: %s | ngan sach: %s\nLink: %s"
+                  % (entry["title"], entry.get("mode", "?"), budget_txt, url)):
             entry["notified_registered"] = True
         log("Da dang ky keo (%s/%s/%s): %s"
             % (entry["status"], entry.get("mode", "?"), entry.get("type", "?"), entry["title"][:70]))
@@ -1073,6 +1151,34 @@ def save_state(state):
 
 
 # ---------------------------------------------------------------- Hanh dong chinh
+def hunt_classify_new(entry):
+    """HUNT-ONLY (outbound OFF): keo moi chi duoc PHAN LOAI - khong soan
+    don, khong lam san pham, khong gui bat cu thu gi ra GitHub.
+    - Khong qua kiem chung truoc gui -> block_presend nhu thuong
+      (skipped_nopay / skipped_trap; tin chan la loai "incident").
+    - Qua kiem chung (co TIN HIEU TIEN THAT) -> trang thai cho_duyet +
+      dung 1 tin Telegram loai "choduyet" noi ro keo dang CHO LUAN DUYET,
+      chua gui don. Cho smet khi Luan duyet moi xu ly tiep."""
+    info = fetch_issue_info(entry["url"])
+    ok_v, reason_v = presend_verify(entry, info)
+    if not ok_v:
+        block_presend(entry, reason_v)
+        return entry
+    entry["status"] = "cho_duyet"
+    entry["cho_duyet_at"] = now_iso()
+    entry["held_reason"] = "held_outbound_off - hunt-only: cho Luan duyet, chua gui don/PR"
+    budget_txt = ("$" + str(entry["budget_usd"])) if entry.get("budget_usd") else "co tin hieu tien that (chua ghi so cu the)"
+    msg = ("[Pepper Hunter Doer] KEO MOI CO TIEN THAT - CHO LUAN DUYET (hunt-only, CHUA GUI DON)\n"
+           "%s\nLink: %s\nNgan sach: %s | Mode phan loai: %s\n"
+           "Trang thai: cho_duyet - doer chi san keo, chua gui don, chua lam san pham, chua mo PR. "
+           "Cho Luan duyet moi xu ly tiep."
+           % (entry["title"], entry["url"], budget_txt, entry.get("mode", "?")))
+    if notify(msg, kind="choduyet"):
+        entry["choduyet_notified"] = True
+    log("CHO DUYET (hunt-only): %s" % entry["url"])
+    return entry
+
+
 def make_apply(entry, pool, pool_state, info):
     """Sinh APPLY.md (don xin nhan viec). Co PAT thi gui comment that ngay."""
     notify_started(entry)
@@ -1122,6 +1228,10 @@ def make_apply(entry, pool, pool_state, info):
             entry["apply_comment_url"] = dup_url
             entry["apply_dedupe_skip"] = "da co comment cua Luando-tester tren issue - khong gui trung"
             log("DEDUPE: bo qua gui don (da co comment cua minh): %s" % entry["url"])
+        elif not outbound_guard(entry, "make_apply"):
+            # HUNT-ONLY: don da soan + da luu APPLY.md, nhung kill-switch
+            # chan o day - 0 request ra ngoai, apply_sent giu False.
+            pass
         else:
             p = parse_issue_url(entry["url"])
             if p:
@@ -1139,11 +1249,14 @@ def make_apply(entry, pool, pool_state, info):
                         # thu gui lai khi van tay PAT thay doi (da thay token moi).
                         entry["awaiting_token"] = True
                         entry["blocked_pat_fp"] = pat_fingerprint()
-    telegram_send("[Pepper Hunter Doer] %s DON XIN VIEC\n%s\nLink: %s\nMode: cho duoc chon - %s"
-                  % ("DA GUI" if entry["apply_sent"] else "DA SOAN (CHO PAT DE GUI)",
-                     entry["title"], entry["url"],
-                     "da gui comment xin nhan viec" if entry["apply_sent"]
-                     else "don o APPLY.md, co PAT la gui ngay"))
+    if entry["apply_sent"]:
+        _lbl, _desc = "DA GUI", "da gui comment xin nhan viec"
+    elif entry.get("outbound_held") == "held_outbound_off":
+        _lbl, _desc = "DA SOAN - GIU LAI", "hunt-only: don nam o APPLY.md, KHONG gui ra ngoai"
+    else:
+        _lbl, _desc = "DA SOAN (CHO PAT DE GUI)", "don o APPLY.md, co PAT la gui ngay"
+    notify("[Pepper Hunter Doer] %s DON XIN VIEC\n%s\nLink: %s\nMode: cho duoc chon - %s"
+           % (_lbl, entry["title"], entry["url"], _desc))
     return entry
 
 
@@ -1300,6 +1413,8 @@ def resend_apply(entry):
         entry.pop("blocked_pat_fp", None)
         log("DEDUPE: bo qua gui bo sung (da co comment cua minh): %s" % entry["url"])
         return True
+    if not outbound_guard(entry, "resend_apply"):
+        return False
     entry["apply_send_tried_at"] = now_iso()
     st, d = gh_api("POST", "/repos/%s/%s/issues/%d/comments" % p, {"body": comment_body})
     if st in (200, 201):
@@ -1307,8 +1422,8 @@ def resend_apply(entry):
         entry["apply_comment_url"] = (d or {}).get("html_url", "")
         entry.pop("awaiting_token", None)
         entry.pop("blocked_pat_fp", None)
-        telegram_send("[Pepper Hunter Doer] DA GUI DON XIN VIEC (gui bo sung)\n%s\nLink: %s"
-                      % (entry["title"], entry["url"]))
+        notify("[Pepper Hunter Doer] DA GUI DON XIN VIEC (gui bo sung)\n%s\nLink: %s"
+               % (entry["title"], entry["url"]))
         log("Da gui bo sung don: %s" % entry["url"])
         return True
     log("Gui bo sung don loi HTTP %s cho %s" % (st, entry["url"]))
@@ -1359,11 +1474,11 @@ def notify_application_ended(entry, verdict, reason):
     khac (lost) hoac het han cho (het_han). Chi goi o vong CHUYEN trang thai
     nen moi keo chi nhan dung 1 tin."""
     if verdict == "lost":
-        telegram_send("[Pepper Hunter Doer] KEO VE NGUOI KHAC (thua)\n%s\nLink: %s\nLy do: %s"
-                      % (entry["title"], entry["url"], reason or "khong ro"))
+        notify("[Pepper Hunter Doer] KEO VE NGUOI KHAC (thua)\n%s\nLink: %s\nLy do: %s"
+               % (entry["title"], entry["url"], reason or "khong ro"))
     elif verdict == "het_han":
-        telegram_send("[Pepper Hunter Doer] DON HET HAN CHO (%d ngay khong phan hoi)\n%s\nLink: %s"
-                      % (APPLIED_EXPIRE_DAYS, entry["title"], entry["url"]))
+        notify("[Pepper Hunter Doer] DON HET HAN CHO (%d ngay khong phan hoi)\n%s\nLink: %s"
+               % (APPLIED_EXPIRE_DAYS, entry["title"], entry["url"]))
 
 
 def maybe_upgrade_mode(entry, pool, pool_state):
@@ -1464,7 +1579,7 @@ def maybe_send_soak_report(state):
         lines.append("- %s - cho %d ngay\n  %s" % (e.get("title", ""), days, e.get("url", "")))
     if len(waiting) > 15:
         lines.append("... va %d don nua" % (len(waiting) - 15))
-    if telegram_send("\n".join(lines)):
+    if notify("\n".join(lines)):
         meta["soak_report_date"] = today
         save_meta(meta)
         log("Da gui tin tong hop don dang ngam (%d don)" % len(waiting))
@@ -1475,6 +1590,8 @@ def maybe_send_soak_report(state):
 def submit_github(entry):
     """Nop bai kenh GitHub bang PAT: fork -> branch -> commit file san pham -> PR.
     Tra True neu da mo duoc PR. Chi chay khi co GITHUB_PAT."""
+    if not outbound_guard(entry, "submit_github"):
+        return False
     p = parse_issue_url(entry["url"])
     if not p:
         return False
@@ -1555,7 +1672,7 @@ def submit_github(entry):
         entry["submit_branch"] = branch
         entry["status"] = "submitted"
         entry["submitted_at"] = now_iso()
-        telegram_send("[Pepper Hunter Doer] DA NOP BAI\n%s\nPR: %s" % (entry["title"], entry["pr_url"]))
+        notify("[Pepper Hunter Doer] DA NOP BAI\n%s\nPR: %s" % (entry["title"], entry["pr_url"]))
         log("Da nop PR: %s" % entry["pr_url"])
         return True
     log("Mo PR loi HTTP %s cho %s" % (st, entry["url"]))
@@ -1591,6 +1708,8 @@ def write_status(state, latest_ts, registered_this_cycle=0, cycle_errors=0):
              "Worker /latest ts: %s" % (latest_ts or "chua co"),
              "Tong keo da theo doi: %d" % len(state),
              "Trang thai: " + (", ".join("%s=%d" % kv for kv in sorted(counts.items())) or "chua co keo"),
+             "Outbound (gui don/PR len GitHub): " + ("ON" if outbound_enabled()
+                                                      else "OFF - HUNT-ONLY (chi san + phan loai + theo doi; keo co tien that -> cho_duyet, cho Luan duyet)"),
              ""]
     order = [("applied", "Dang cho duoc chon (da nop don)"),
              ("assigned", "Da duoc chon - chuan bi lam"),
@@ -1602,6 +1721,7 @@ def write_status(state, latest_ts, registered_this_cycle=0, cycle_errors=0):
              ("het_han", "Het han cho"),
              ("skipped_trap", "Bo qua - repo bay bot (khong dang ky, khong gui don)"),
              ("skipped_nopay", "Bo qua - khong co tin hieu tien that (kiem chung truoc gui chan)"),
+             ("cho_duyet", "Cho Luan duyet - keo co tien that (hunt-only, CHUA gui don)"),
              ("new", "Moi dang ky")]
     for status, label in order:
         rows = [e for e in state.values() if e.get("status") == status]
@@ -1613,6 +1733,8 @@ def write_status(state, latest_ts, registered_this_cycle=0, cycle_errors=0):
             extra = ""
             if e.get("pr_url"):
                 extra = " - PR: " + e["pr_url"]
+            elif status == "cho_duyet":
+                extra = " - cho duyet tu " + (e.get("cho_duyet_at") or "?")
             elif status == "applied":
                 if e.get("apply_sent"):
                     extra = " - don: da gui"
@@ -1715,6 +1837,8 @@ def self_dispatch():
 def process_cycle(state, pool, pool_state):
     """1 vong: dang ky keo moi tu 2 nguon intake roi chay may trang thai.
     Tra dict {latest_ts, new_registered, changed} - main quyet dinh commit/heartbeat."""
+    load_control()
+    log("Vong moi: outbound=%s" % ("ON" if outbound_enabled() else "OFF (hunt-only - chi san/phan loai/theo doi)"))
     changed = False
     new_registered = 0
     cycle_errors = 0
@@ -1736,8 +1860,8 @@ def process_cycle(state, pool, pool_state):
                 changed = True
                 log("Chuyen skipped_trap: %s" % url)
         if entry.get("status") == "skipped_trap" and not entry.get("trap_notified"):
-            if telegram_send("[Pepper Hunter Doer] BO QUA KEO BAY BOT (khong gui don)\n%s\nLink: %s\nLy do: %s"
-                             % (entry["title"], url, entry.get("note", "repo bay bot"))):
+            if notify("[Pepper Hunter Doer] BO QUA KEO BAY BOT (khong gui don)\n%s\nLink: %s\nLy do: %s"
+                      % (entry["title"], url, entry.get("note", "repo bay bot")), kind="incident"):
                 entry["trap_notified"] = True
                 changed = True
 
@@ -1808,7 +1932,7 @@ def process_cycle(state, pool, pool_state):
         counts = {}
         for e in state.values():
             counts[e.get("status", "?")] = counts.get(e.get("status", "?"), 0) + 1
-        telegram_send("[Pepper Hunter Doer] KENH THONG BAO DA SONG LAI - dang theo doi %d keo (%s). "
+        notify("[Pepper Hunter Doer] KENH THONG BAO DA SONG LAI - dang theo doi %d keo (%s). "
                       "Tu bay gio moi su kien (nhan keo moi / duoc chon / nop bai / tien ve) se bao ngay."
                       % (len(state), ", ".join("%s=%d" % kv for kv in sorted(counts.items()))))
         log("Backfill thong bao cho %d keo cu" % backfilled)
@@ -1821,7 +1945,12 @@ def process_cycle(state, pool, pool_state):
         before = json.dumps({k: v for k, v in entry.items() if k != "updated_at"},
                             sort_keys=True, ensure_ascii=False, default=str)
         try:
-            if status == "new" and entry.get("mode") == "cho_duoc_chon":
+            if status == "new" and not outbound_enabled():
+                # HUNT-ONLY: keo moi chi PHAN LOAI -> cho_duyet (co tien
+                # that) hoac skipped_nopay/skipped_trap. Khong gui don,
+                # khong lam san pham, khong mo PR.
+                hunt_classify_new(entry)
+            elif status == "new" and entry.get("mode") == "cho_duoc_chon":
                 make_apply(entry, pool, pool_state, fetch_issue_info(url))
             elif status == "new" and entry.get("mode") == "lam_ngay":
                 # Nhanh lam_ngay se mo PR ra ngoai -> cung phai qua kiem chung
@@ -1834,8 +1963,24 @@ def process_cycle(state, pool, pool_state):
                     # Lam xong la mo PR nhap NGAY trong cung vong (khong cho assign)
                     if entry.get("status") == "working" and (os.environ.get("GITHUB_PAT") or "").strip():
                         submit_github(entry)
+            elif status == "cho_duyet":
+                # Da ghi nhan, dang cho Luan duyet: chi theo doi tinh trang
+                # issue (dong -> lost), khong gui gi, khong bao routine.
+                info_c = fetch_issue_info(url)
+                if info_c and info_c.get("state") == "closed":
+                    entry["status"] = "lost"
+                    entry["note"] = "issue da dong trong luc cho Luan duyet"
+                    log("Keo cho_duyet -> lost (issue da dong): %s" % url)
             elif status == "applied":
-                if not entry.get("apply_sent"):
+                if not outbound_enabled():
+                    # HUNT-ONLY: TUYET DOI khong gui bo sung don cu; chi
+                    # theo doi ket qua (duoc chon / thua / het han) o duoi.
+                    if entry.get("outbound_held") != "held_outbound_off":
+                        entry["outbound_held"] = "held_outbound_off"
+                        entry["outbound_held_action"] = "resend_apply"
+                        entry["outbound_held_at"] = now_iso()
+                        log("HELD outbound_off: khong gui bo sung don cho %s" % url)
+                elif not entry.get("apply_sent"):
                     ensure_apply_file_money(entry)
                     # Don cu chua gui duoc cung phai qua kiem chung truoc khi
                     # gui bo sung (keo dang ky tu truoc khi co cong nay).
@@ -1849,19 +1994,29 @@ def process_cycle(state, pool, pool_state):
                     if verdict == "assigned":
                         entry["status"] = "assigned"
                         entry["assigned_at"] = now_iso()
-                        telegram_send("[Pepper Hunter Doer] DUOC CHON!\n%s\nLink: %s\nBat dau lam san pham ngay."
-                                      % (entry["title"], url))
-                        make_product(entry, pool, pool_state, fetch_issue_info(url))
+                        notify("[Pepper Hunter Doer] DUOC CHON!\n%s\nLink: %s\nBat dau lam san pham ngay."
+                               % (entry["title"], url))
+                        if outbound_enabled():
+                            make_product(entry, pool, pool_state, fetch_issue_info(url))
+                        else:
+                            log("HELD outbound_off: da duoc chon nhung KHONG lam san pham (hunt-only): %s" % url)
                     elif verdict in ("lost", "het_han"):
                         entry["status"] = verdict
                         entry["note"] = "don cho ket thuc: " + verdict
                         notify_application_ended(entry, verdict, verdict_reason)
-                    else:
+                    elif outbound_enabled():
                         # Chua co phan hoi: phan loai lai theo tin hieu moi nhat -
                         # issue vua moi lam ngay thi nang nhanh lam san pham ngay.
+                        # (hunt-only: bo qua - nang nhanh chi de lam/nop, ca hai deu bi giu)
                         maybe_upgrade_mode(entry, pool, pool_state)
             elif status == "assigned":
-                make_product(entry, pool, pool_state, fetch_issue_info(url))
+                if outbound_enabled():
+                    make_product(entry, pool, pool_state, fetch_issue_info(url))
+                elif entry.get("outbound_held") != "held_outbound_off":
+                    entry["outbound_held"] = "held_outbound_off"
+                    entry["outbound_held_action"] = "make_product"
+                    entry["outbound_held_at"] = now_iso()
+                    log("HELD outbound_off: khong lam san pham cho keo assigned (hunt-only): %s" % url)
             elif status == "working":
                 # Keo goc applied duoc nang nhanh lam-ngay: van canh thua binh
                 # thuong (issue dong / nguoi khac duoc giao -> lost + bao).
@@ -1879,7 +2034,7 @@ def process_cycle(state, pool, pool_state):
             elif status == "submitted":
                 check_submitted(entry)
             elif status == "da_tra" and not entry.get("paid_notified"):
-                telegram_send("[Pepper Hunter Doer] TIEN VE!\n%s\nLink: %s" % (entry["title"], url))
+                notify("[Pepper Hunter Doer] TIEN VE!\n%s\nLink: %s" % (entry["title"], url))
                 entry["paid_notified"] = True
         except Exception as e:
             cycle_errors += 1
@@ -1917,13 +2072,16 @@ def main():
         missing.append("GITHUB_PAT (don chi soan san, khong gui comment/khong mo PR)")
     for m in missing:
         log("chua cau hinh: " + m)
-    log("Doer bat dau: pool %d key, budget %.0f phut, poll %ds, once=%s, git=%s, dispatch=%s"
-        % (len(pool), LOOP_BUDGET_MIN, POLL_SEC, DOER_ONCE, DOER_GIT, DOER_DISPATCH))
+    load_control()
+    log("Doer bat dau: pool %d key, budget %.0f phut, poll %ds, once=%s, git=%s, dispatch=%s, outbound=%s"
+        % (len(pool), LOOP_BUDGET_MIN, POLL_SEC, DOER_ONCE, DOER_GIT, DOER_DISPATCH,
+           "ON" if outbound_enabled() else "OFF (hunt-only)"))
     state = load_state()
     pool_state = {"dead": set(), "gone": {}}
     start = time.monotonic()
     budget_sec = LOOP_BUDGET_MIN * 60
     last_commit = 0.0  # monotonic cua lan commit+push gan nhat (heartbeat)
+    last_incident_tg = 0.0  # monotonic cua lan bao Telegram su co gan nhat
     while True:
         try:
             res = process_cycle(state, pool, pool_state)
@@ -1931,6 +2089,12 @@ def main():
             # 1 vong loi la khong duoc giet ca job: log + van ghi heartbeat.
             log("LOI TOAN VONG (da cach ly, job van tiep tuc): %s" % e)
             res = {"latest_ts": None, "new_registered": 0, "changed": True, "errors": 1}
+            # Loi toan vong = su co that -> bao Telegram loai "incident"
+            # (ke ca o hunt-only), toi da 1 tin / 30 phut de khoi spam.
+            if time.monotonic() - last_incident_tg >= 1800:
+                if notify("[Pepper Hunter Doer] SU CO: loi toan vong cua chuoi doer: %s"
+                          % str(e)[:200], kind="incident"):
+                    last_incident_tg = time.monotonic()
         heartbeat_due = (time.monotonic() - last_commit) >= HEARTBEAT_SEC
         if res["changed"] or heartbeat_due or DOER_ONCE:
             write_status(state, res["latest_ts"], res["new_registered"], res.get("errors", 0))
