@@ -35,6 +35,24 @@ nhan kinh nghiem voi repo/project dich hoac ngoai ho so -> thay bang
 template an toan. (3) Telegram gian nhip >= 3.5s/tin + retry theo
 retry_after khi 429.
 
+VA HE THONG 11/11 CHIEM (su co IES-BoilerRoom/cuda-warp-allreduce-verifier#1:
+7 comment don trung + bia "experienced in CUDA kernel optimization" tren 1
+issue mirror gia danh escrow): (1) LINT NGHIEM v2 - bo trigger nhan kinh
+nghiem morphology-safe (bat ca "experienced/skilled/background in...") +
+denylist ky nang ngoai ho so; moi duong gui ra (don moi, gui bo sung, than
+PR) deu qua gate_outbound_text(): co cau bia la THAY TOAN BO bang template
+an toan. Ban cu thoat vi CLAIM_RE khong nhan bien the "experienced" va cau
+chen tu khoa ho so that thi qua cong. (2) DEDUPE TRUOC GUI: ngay truoc POST
+comment, GET lai comment cua issue - da co comment cua Luando-tester thi
+danh dau apply_sent, khong gui nua (doc lap voi state: cuu truong hop run
+truoc gui that nhung bi huy truoc khi commit state). (3) LOC MIRROR o
+intake: body khop mau "Conformance Mirror"/"not reviewed on this mirror"/
+"Specification Shards"/regression-runner, hoac repo < 30 ngay tuoi ma moi
+issue deu la bai escrow/conformance -> skipped_trap ngay tu dang ky, cong
+kiem chung truoc gui cung chan. (4) SINGLE-FLIGHT: self_dispatch kiem tra
+run doer.yml dang active truoc khi dispatch (cong sau: concurrency group
+trong doer.yml).
+
 MAY TRANG THAI (luan chot 18:01 10/11 - nhieu keo phai THANG/DUOC CHON truoc):
   mode=lam_ngay      : CHI khi issue NOI RO moi lam ngay (OPEN_SIGNALS:
                        "first pr", "no assignment needed", "just open a pr",
@@ -149,6 +167,68 @@ def trap_repo_reason(url):
                     "khong gui don" % (owner, repo, m))
     return None
 
+# --- Bo loc MIRROR / BAY O TANG BODY + TUOI REPO (bo sung sau su co
+# IES-BoilerRoom/cuda-warp-allreduce-verifier#1): cac repo "Automated CI
+# Conformance Mirror" gia danh escrow ($450 USDC + ten cac rail algora/polar/
+# opire trong body) nen CO tin hieu tien gia -> cong kiem chung theo tin hieu
+# tien khong bat duoc. Dau hieu nhan dien nam o KHUNG MO TA (mirror notice,
+# "not reviewed on this mirror", "Specification Shards", regression runner)
+# hoac o HINH DANG REPO: repo moi tao < 30 ngay ma toan bo issue deu la bai
+# escrow/conformance.
+MIRROR_BODY_RES = [
+    re.compile(r"conformance mirror", re.I),
+    re.compile(r"not reviewed on this mirror", re.I),
+    re.compile(r"manual pull requests?[^.\n]{0,80}not reviewed", re.I),
+    re.compile(r"specification shards", re.I),
+    re.compile(r"\bregression runner\b", re.I),
+    re.compile(r"automated ci\b[^.\n]{0,60}(mirror|regression)", re.I),
+]
+ESCROW_TITLE_RE = re.compile(r"escrow|conformance", re.I)
+REPO_AGE_TRAP_DAYS = 30
+_REPO_AGE_CACHE = {}
+
+
+def mirror_body_reason(title, body):
+    """Tra ly do mirror/bay neu title/body khop mau mirror, None neu sach."""
+    text = (title or "") + "\n" + (body or "")
+    for r in MIRROR_BODY_RES:
+        m = r.search(text)
+        if m:
+            return "body khop mau mirror/bay bot: '%s'" % m.group(0)[:70]
+    return None
+
+
+def repo_age_trap_reason(url):
+    """Repo tao chua du REPO_AGE_TRAP_DAYS ngay ma MOI issue cua no deu la
+    bai escrow/conformance -> bay mirror kieu IES-BoilerRoom. Ket qua cache
+    theo repo trong phien chay de khong goi API lap lai moi ung vien."""
+    p = parse_issue_url(url)
+    if not p:
+        return None
+    key = "%s/%s" % (p[0], p[1])
+    if key in _REPO_AGE_CACHE:
+        return _REPO_AGE_CACHE[key]
+    reason = None
+    try:
+        st, repo = gh_api("GET", "/repos/%s/%s" % (p[0], p[1]))
+        if st == 200 and isinstance(repo, dict):
+            created = datetime.fromisoformat((repo.get("created_at") or "").replace("Z", "+00:00"))
+            age_days = (datetime.now(timezone.utc) - created).days
+            if age_days < REPO_AGE_TRAP_DAYS:
+                st2, issues = gh_api("GET", "/repos/%s/%s/issues?state=all&per_page=50" % (p[0], p[1]))
+                if st2 == 200 and isinstance(issues, list):
+                    titles = [(i.get("title") or "") for i in issues
+                              if isinstance(i, dict) and "pull_request" not in i]
+                    if titles and all(ESCROW_TITLE_RE.search(t) for t in titles):
+                        reason = ("repo %s moi tao %d ngay, ca %d issue deu la bai "
+                                  "escrow/conformance - bay mirror, bo qua"
+                                  % (key, age_days, len(titles)))
+    except Exception:
+        reason = None
+    _REPO_AGE_CACHE[key] = reason
+    return reason
+
+
 # --- Cong KIEM CHUNG TRUOC GUI (va khan 11/11, sau su co SS14#44876): don
 # xin viec / PR khong duoc roi he thong neu issue khong co TIN HIEU TIEN
 # THAT. Su co: luoi noi rong vet trung issue bao loi co che "bounty" TRONG
@@ -196,6 +276,9 @@ def presend_verify(entry, info):
     labels = info.get("labels") or []
     if AGGREGATOR_TITLE_RE.search(title or ""):
         return False, "title dang aggregator rac - bo qua"
+    mr = mirror_body_reason(title, body)
+    if mr:
+        return False, "issue thuoc mirror/bay bot - " + mr
     if has_money_signal(title, body, labels):
         return True, ""
     hints = game_context_hints(labels)
@@ -208,8 +291,13 @@ def presend_verify(entry, info):
 
 def block_presend(entry, reason):
     """Chuyen 1 keo bi cong kiem chung chan sang skipped_nopay + bao Telegram
-    1 lan. Chi dung khi CHUA co gi duoc gui ra ngoai cho keo nay."""
-    entry["status"] = "skipped_nopay"
+    1 lan. Chi dung khi CHUA co gi duoc gui ra ngoai cho keo nay.
+    Rieng ly do MIRROR/bay -> skipped_trap (dung ban chat hon skipped_nopay)."""
+    if "mirror" in reason:
+        entry["status"] = "skipped_trap"
+        entry["trap_notified"] = True  # tin ben duoi da la thong bao duy nhat
+    else:
+        entry["status"] = "skipped_nopay"
     entry["note"] = "kiem chung truoc gui chan: " + reason
     log("CHAN GUI (kiem chung truoc gui) %s: %s" % (entry["url"], reason))
     if not entry.get("nopay_notified"):
@@ -433,7 +521,25 @@ def fetch_issue_comments(url):
         return []
     return [{"user": (c.get("user") or {}).get("login", ""),
              "association": c.get("author_association", ""),
+             "id": c.get("id"),
+             "html_url": c.get("html_url", ""),
              "body": (c.get("body") or "")[:1500]} for c in d]
+
+
+def already_commented(url):
+    """KIEM TRA TRUNG LAP NGAY TRUOC KHI GUI: Luando-tester da co comment
+    tren issue nay chua? Day la chot chan doc lap voi state - cuu cac truong
+    hop run truoc da gui that nhung bi huy truoc khi commit state (state mat
+    co apply_sent -> run sau gui lai; su co IES: 7 comment trung tren 1
+    issue). Tra (da_co, html_url_cua_comment). Loi doc API -> (False, '')
+    de khong chan oan (van con cong kiem chung + lint phia truoc)."""
+    try:
+        for c in fetch_issue_comments(url):
+            if (c.get("user") or "") == OUR_USERNAME:
+                return True, c.get("html_url", "")
+    except Exception:
+        pass
+    return False, ""
 
 
 # ---------------------------------------------------------------- Cong sach + Intake 2
@@ -504,6 +610,9 @@ def fetch_bounty_candidates():
                 log("Intake2 BO QUA repo bay bot (%s): %s" % (repo, title[:70]))
                 continue
             excerpt = re.sub(r"\s+", " ", it.get("body") or "")[:600]
+            if mirror_body_reason(title, excerpt):
+                log("Intake2 BO QUA mirror/bay o body (%s): %s" % (repo, title[:70]))
+                continue
             text = title + " " + excerpt
             hits = clean_gate(text)
             if hits:
@@ -538,15 +647,25 @@ def register_deal(state, deal):
     if AGGREGATOR_TITLE_RE.search(deal.get("title") or ""):
         log("Khong dang ky bai aggregator rac: %s" % (deal.get("title") or "")[:70])
         return None
-    trap = trap_repo_reason(url)
-    if trap:
-        log("Khong dang ky keo thuoc repo bay: %s (%s)" % (url, trap))
-        return None
+    trap = trap_repo_reason(url) or mirror_body_reason(deal.get("title"), deal.get("pack"))
     info = fetch_issue_info(url)
+    if not trap and info:
+        trap = (mirror_body_reason(info.get("title"), info.get("body"))
+                or repo_age_trap_reason(url))
     slug = make_slug(url, deal.get("title", ""))
     entry = {"title": deal.get("title", ""), "url": url, "slug": slug,
              "budget_usd": deal.get("budget_usd"), "pack": (deal.get("pack") or "")[:6000],
              "status": "new", "created_at": now_iso(), "updated_at": now_iso(), "files": []}
+    if trap:
+        # Ghi nhan skipped_trap vao state (thay vi bo qua am tham) de khong
+        # quet/gui lai o cac vong sau + co thong bao 1 lan qua vong migration.
+        entry["status"] = "skipped_trap"
+        entry["note"] = trap
+        entry["type"] = classify_type(entry["title"], entry["pack"])
+        entry["mode"] = "cho_duoc_chon"
+        state[url] = entry
+        log("Dang ky skipped_trap (khong gui don): %s (%s)" % (url, trap))
+        return entry
     if info and info.get("state") == "closed":
         entry["status"] = "lost"
         entry["note"] = "issue da dong truoc khi kip lam"
@@ -711,27 +830,106 @@ def target_tokens(deal):
 
 CLAIM_RE = re.compile(r"[^.\n]*\b(experience|expertise|expert in|worked on|speciali[sz]\w*|proficient|familiar with)\b[^.\n]*", re.I)
 
+# --- LINT NGHIEM v2 (thay CO CHE, khong chi them cum tu - bai hoc su co IES
+# 11/11): ban lint cu hong o 3 cho: (1) CLAIM_RE chi nhan dang dung cac tu
+# "experience/expertise/..." o dang nguyen the - bien the "experienced" thoat
+# vi \b sau nhom khong khop khi con chu cai theo sau; (2) cau nhan kinh
+# nghiem thoat neu trong cau co chen 1 tu khoa ho so that bat ky (vd vua nhan
+# "Python" vua nhan CUDA trong cung 1 cau thi qua); (3) chi quet cac cau co
+# dung tu khoa nhan kinh nghiem trong danh sach hep - cac dang "skilled in",
+# "strong background in", "I have built...", "8+ years" khong bi quet.
+# Co che moi: (a) bo kich hoat (trigger) MORPHOLOGY-SAFE (goc tu + \w*) va
+# bao phu moi dang tu nhan nang luc o ngu canh don xin viec; (b) bat ky cau
+# nao da kich hoat deu bi coi la BIA neu chua tu khoa cam (denylist ky
+# nang/ky thuat ngoai ho so), cham dinh danh dich, co "codebase", co mau
+# "X years", HOAC khong chua nang luc ho so that nao - tuc la cau nhan kinh
+# nghiem chi SACH khi no dua HOAN TOAN tren ho so that; (c) moi duong gui ra
+# deu qua gate_outbound_text(): co van de la THAY TOAN BO text bang template
+# an toan, khong bao gio gui text goc.
+CLAIM_TRIGGER_RE = re.compile(
+    r"experienc\w*|expert\w*|speciali[sz]\w*|proficien\w*|familiar\w*|"
+    r"skill\w*|background in|knowledge of|worked (on|with|at)|"
+    r"(i|we|i've|we've) (have )?(built|developed|created|written|designed|shipped|delivered)\b|"
+    r"my (work|background|expertise|track record)|track record|"
+    r"\d+\s*\+?\s*years?|years? of|hands-on|well-versed|adept|seasoned|"
+    r"deep (understanding|knowledge)|strong (grasp|understanding)",
+    re.I)
+# Ky nang/ky thuat NGOAI ho so that - xuat hien trong cau nhan kinh nghiem
+# la bia, bat ke cau co chen tu khoa ho so that hay khong.
+FORBIDDEN_CLAIM_TOKENS = [
+    "cuda", "gpu", "kernel", "fp8", "fp16", "bf16", "sm90", "hopper",
+    "tensor core", "rust", "solidity", "c++", "c#", "golang", "java",
+    "typescript", "javascript", "react", "kubernetes", "docker",
+    "machine learning", "deep learning", "smart contract", "embedded",
+    "firmware", "fpga", "verilog", "devops", "backend", "front-end",
+    "frontend", "full-stack", "fullstack", "android", "ios",
+    "game development", "unity", "unreal", "blockchain development",
+    "data engineering", "cloud architecture", "aws", "azure", "gcp",
+]
+YEARS_RE = re.compile(r"\d+\s*\+?\s*years?\b|years? of (experience|work)", re.I)
+
+
+def _claim_segments(text):
+    """Cat text thanh cac doan cau (theo dau cham/xuong dong/cham phay) -
+    don vi de quet nhan kinh nghiem."""
+    segs = []
+    for part in re.split(r"[.\n;]+", text or ""):
+        seg = part.strip(" -\t")
+        if len(seg) >= 12:
+            segs.append(seg)
+    return segs
+
 
 def lint_application(text, deal):
-    """LINT sau soan / truoc gui: bat cau nhan kinh nghiem BIA. 1 cau bi bat khi:
-    (1) cau nhan kinh nghiem cham ten owner/repo/title cua issue dich; hoac
-    (2) nhan kinh nghiem voi 'codebase' (ho so that khong co muc nay); hoac
-    (3) cau nhan kinh nghiem khong chua bat ky nang luc nao cua ho so that.
-    Tra list cac cau bi bat (rong = sach, duoc gui)."""
+    """LINT sau soan / truoc gui (v2): bat cau nhan kinh nghiem BIA. 1 doan
+    cau bi coi la nhan kinh nghiem khi khop CLAIM_TRIGGER_RE (moi dang tu
+    nhan nang luc, ke ca bien the nhu 'experienced'); doan do la BIA khi:
+    (1) chua ky nang/ky thuat ngoai ho so (FORBIDDEN_CLAIM_TOKENS); hoac
+    (2) cham dinh danh owner/repo/title cua issue dich; hoac
+    (3) nhan kinh nghiem voi 'codebase' (ho so that khong co muc nay); hoac
+    (4) co mau so nam kinh nghiem ('5+ years'...); hoac
+    (5) khong dua tren bat ky nang luc nao cua ho so that (REAL_CLAIM_KEYS).
+    Cau nhan kinh nghiem CHI sach khi dua hoan toan tren ho so that.
+    Tra list cac doan bi bat (rong = sach, duoc gui)."""
     problems = []
     targets = target_tokens(deal)
-    for m in CLAIM_RE.finditer(text or ""):
-        seg = m.group(0).strip(" -\t")
-        if len(seg) < 12:
+    for seg in _claim_segments(text):
+        if not CLAIM_TRIGGER_RE.search(seg):
             continue
         low = seg.lower()
-        if any(t and t in low for t in targets):
+        if any(tok in low for tok in FORBIDDEN_CLAIM_TOKENS):
+            problems.append(seg)
+        elif any(t and t in low for t in targets):
             problems.append(seg)
         elif "codebase" in low:
+            problems.append(seg)
+        elif YEARS_RE.search(seg):
             problems.append(seg)
         elif not any(k in low for k in REAL_CLAIM_KEYS):
             problems.append(seg)
     return problems
+
+
+def safe_pr_body(deal):
+    """Than PR an toan khi ban goc bi LINT chan: chi thong tin trung tinh +
+    ho so that, khong nhan kinh nghiem, khong placeholder."""
+    return ("Pull request prepared by PepperResearch (GitHub: Luando-tester) for this issue.\n\n"
+            "Profile: " + REAL_PROFILE + "\n\n"
+            "The deliverable files are included in this PR for review. Happy to adjust "
+            "based on feedback - thank you!")
+
+
+def gate_outbound_text(text, deal, kind="apply"):
+    """CHOT CHAN CUOI cho MOI text gui ra ngoai (comment don/claim/follow-up
+    va than PR): chay LINT nghiem; co cau nhan kinh nghiem bia thi THAY TOAN
+    BO text bang template an toan (chi so that + ke hoach chung + loi xin
+    duoc giao viec) - khong bao gio gui text goc. Tra (text_an_toan, problems).
+    kind='apply' -> template_apply; kind='pr' -> safe_pr_body."""
+    problems = lint_application(text, deal)
+    if not problems:
+        return text, []
+    safe = template_apply(deal) if kind == "apply" else safe_pr_body(deal)
+    return sanitize_comment_body(safe), problems
 
 
 def prompt_apply(deal, info):
@@ -894,12 +1092,12 @@ def make_apply(entry, pool, pool_state, info):
     else:
         text, mode = template_apply(deal), "template (chua co Gemini key)"
     comment_body = sanitize_comment_body(ensure_ask_money(text.strip(), deal))
-    # LINT CHONG BIA: don nhan kinh nghiem khong co trong ho so that -> VUT,
-    # thay bang template an toan (chi ho so that + ke hoach chung).
-    bia = lint_application(comment_body, deal)
+    # LINT NGHIEM (gate_outbound_text): don nhan kinh nghiem khong co trong
+    # ho so that -> VUT TOAN BO, thay bang template an toan (chi ho so that
+    # + ke hoach chung), khong bao gio gui text goc.
+    comment_body, bia = gate_outbound_text(comment_body, deal, kind="apply")
     if bia:
         log("LINT chan don bia cho %s: %s" % (entry["url"], " | ".join(bia)[:200]))
-        comment_body = sanitize_comment_body(template_apply(deal))
         mode = mode + " | don Gemini bi LINT chan (bia kinh nghiem) -> template an toan"
         entry["apply_lint_blocked"] = bia[:3]
     doc = (NOTE_DRAFT
@@ -915,22 +1113,32 @@ def make_apply(entry, pool, pool_state, info):
     entry["applied_at"] = now_iso()
     entry["apply_sent"] = False
     if (os.environ.get("GITHUB_PAT") or "").strip():
-        p = parse_issue_url(entry["url"])
-        if p:
-            st, d = gh_api("POST", "/repos/%s/%s/issues/%d/comments" % p, {"body": comment_body})
-            if st in (200, 201):
-                entry["apply_sent"] = True
-                entry["apply_comment_url"] = (d or {}).get("html_url", "")
-                log("Da GUI don xin viec: %s" % entry["url"])
-            else:
-                log("Gui don loi HTTP %s cho %s - don van nam o APPLY.md" % (st, entry["url"]))
-                if st == 403:
-                    entry["apply_blocked"] = ("PAT fine-grained khong comment duoc repo nguoi khac "
-                                               "(HTTP 403) - can classic PAT scope public_repo")
-                    # Co cho-token rieng: chu ky khac van chay binh thuong; chi
-                    # thu gui lai khi van tay PAT thay doi (da thay token moi).
-                    entry["awaiting_token"] = True
-                    entry["blocked_pat_fp"] = pat_fingerprint()
+        # DEDUPE TRUOC GUI: GET lai comment cua issue ngay truoc khi POST -
+        # da co comment cua Luando-tester thi danh dau da gui, KHONG gui trung
+        # (doc lap voi state, cuu truong hop run truoc bi huy truoc commit).
+        dup, dup_url = already_commented(entry["url"])
+        if dup:
+            entry["apply_sent"] = True
+            entry["apply_comment_url"] = dup_url
+            entry["apply_dedupe_skip"] = "da co comment cua Luando-tester tren issue - khong gui trung"
+            log("DEDUPE: bo qua gui don (da co comment cua minh): %s" % entry["url"])
+        else:
+            p = parse_issue_url(entry["url"])
+            if p:
+                st, d = gh_api("POST", "/repos/%s/%s/issues/%d/comments" % p, {"body": comment_body})
+                if st in (200, 201):
+                    entry["apply_sent"] = True
+                    entry["apply_comment_url"] = (d or {}).get("html_url", "")
+                    log("Da GUI don xin viec: %s" % entry["url"])
+                else:
+                    log("Gui don loi HTTP %s cho %s - don van nam o APPLY.md" % (st, entry["url"]))
+                    if st == 403:
+                        entry["apply_blocked"] = ("PAT fine-grained khong comment duoc repo nguoi khac "
+                                                   "(HTTP 403) - can classic PAT scope public_repo")
+                        # Co cho-token rieng: chu ky khac van chay binh thuong; chi
+                        # thu gui lai khi van tay PAT thay doi (da thay token moi).
+                        entry["awaiting_token"] = True
+                        entry["blocked_pat_fp"] = pat_fingerprint()
     telegram_send("[Pepper Hunter Doer] %s DON XIN VIEC\n%s\nLink: %s\nMode: cho duoc chon - %s"
                   % ("DA GUI" if entry["apply_sent"] else "DA SOAN (CHO PAT DE GUI)",
                      entry["title"], entry["url"],
@@ -1068,18 +1276,30 @@ def resend_apply(entry):
     if "## Noi dung comment se gui" not in doc:
         return False
     comment_body = sanitize_comment_body(doc.split("## Noi dung comment se gui", 1)[1].strip())
-    # LINT CHONG BIA cho ca don cu soan tu cac lan chay truoc: co cau nhan
-    # kinh nghiem khong co trong ho so that -> thay bang template an toan.
+    # LINT NGHIEM cho ca don cu soan tu cac lan chay truoc (gate_outbound_text):
+    # co cau nhan kinh nghiem khong co trong ho so that -> thay TOAN BO bang
+    # template an toan, khong gui text goc.
     deal_r = {"title": entry["title"], "url": entry["url"], "budget_usd": entry.get("budget_usd")}
-    bia = lint_application(comment_body, deal_r)
+    comment_body, bia = gate_outbound_text(comment_body, deal_r, kind="apply")
     if bia:
         log("LINT chan don gui bo sung (bia kinh nghiem) cho %s: %s - thay bang template an toan"
             % (entry["url"], " | ".join(bia)[:200]))
-        comment_body = sanitize_comment_body(template_apply(deal_r))
         entry["apply_lint_blocked"] = bia[:3]
     p = parse_issue_url(entry["url"])
     if not p or not comment_body:
         return False
+    # DEDUPE TRUOC GUI ( nhu make_apply): da co comment cua minh tren issue
+    # thi danh dau da gui va dung lai - day la duong gui trung chinh trong su
+    # co IES (run truoc gui that nhung state chua kip commit).
+    dup, dup_url = already_commented(entry["url"])
+    if dup:
+        entry["apply_sent"] = True
+        entry["apply_comment_url"] = dup_url
+        entry["apply_dedupe_skip"] = "da co comment cua Luando-tester tren issue - khong gui trung"
+        entry.pop("awaiting_token", None)
+        entry.pop("blocked_pat_fp", None)
+        log("DEDUPE: bo qua gui bo sung (da co comment cua minh): %s" % entry["url"])
+        return True
     entry["apply_send_tried_at"] = now_iso()
     st, d = gh_api("POST", "/repos/%s/%s/issues/%d/comments" % p, {"body": comment_body})
     if st in (200, 201):
@@ -1318,6 +1538,13 @@ def submit_github(entry):
             "Files under `pepper-hunter-deliverable/`: %s\n\n%s"
             % (number, ", ".join(uploaded),
                "This is a draft PR for review." if PR_DRAFT else "Ready for review."))
+    # Than PR cung la text ra ngoai -> qua LINT nghiem nhu moi duong gui khac
+    # (du phong: sau nay co chen tu gioi thieu vao body cung khong bia duoc).
+    body, bia_pr = gate_outbound_text(body, {"title": entry["title"], "url": entry["url"],
+                                             "budget_usd": entry.get("budget_usd")}, kind="pr")
+    if bia_pr:
+        log("LINT chan than PR bia cho %s - thay bang body an toan" % entry["url"])
+        entry["pr_lint_blocked"] = bia_pr[:3]
     st, pr = gh_api("POST", "/repos/%s/%s/pulls" % (owner, repo),
                     {"title": "[Pepper Hunter] %s" % entry["title"][:90],
                      "head": "%s:%s" % (me_login, branch), "base": default_branch,
@@ -1432,6 +1659,30 @@ def git_commit_push(msg):
         log("git loi: %s" % e)
 
 
+def other_active_doer_run(env):
+    """Co run doer.yml NAO KHAC dang active (queued/pending/in_progress)
+    ngoai run hien tai khong? Dung gh api; tra True/False, None neu khong
+    doc duoc (loi API/mang - nguoi goi tu quyet dinh theo huong an toan)."""
+    try:
+        r = subprocess.run(
+            ["gh", "api", "repos/{owner}/{repo}/actions/workflows/doer.yml/runs?per_page=30",
+             "--jq", ".workflow_runs[] | [.id, .status] | @tsv"],
+            cwd=BASE_DIR, capture_output=True, text=True, timeout=60, env=env)
+        if r.returncode != 0:
+            return None
+        me = (os.environ.get("GITHUB_RUN_ID") or "").strip()
+        for line in (r.stdout or "").splitlines():
+            parts = line.split("\t")
+            if len(parts) != 2:
+                continue
+            rid, status = parts[0].strip(), parts[1].strip()
+            if rid != me and status in ("queued", "pending", "waiting", "in_progress"):
+                return True
+        return False
+    except Exception:
+        return None
+
+
 def self_dispatch():
     if not DOER_DISPATCH:
         return
@@ -1441,6 +1692,17 @@ def self_dispatch():
         return
     env = dict(os.environ)
     env["GH_TOKEN"] = token
+    # SINGLE-FLIGHT (bo sung sau su co IES - nhieu run dispatch de len nhau
+    # sang 11/11): truoc khi tu dispatch, kiem tra con run doer.yml nao khac
+    # dang active khong. Co -> KHONG dispatch nua: run do (hoac schedule */5)
+    # se noi tiep chuoi, tranh 2 run cung ghi state/comment de len nhau.
+    # Workflow doer.yml cung da co concurrency group lam lop chot sau.
+    active = other_active_doer_run(env)
+    if active:
+        log("Bo qua tu dispatch: da co run doer.yml khac dang active (single-flight)")
+        return
+    if active is None:
+        log("Khong kiem tra duoc run dang active - van dispatch (concurrency group cua workflow se chan trung)")
     try:
         r = subprocess.run(["gh", "workflow", "run", "doer.yml", "--ref", "main"],
                            cwd=BASE_DIR, capture_output=True, text=True, timeout=120, env=env)
@@ -1461,9 +1723,13 @@ def process_cycle(state, pool, pool_state):
 
     # --- Migration cong bay bot: keo da nam trong state ma thuoc repo bay ->
     # skipped_trap (khong gui don, khong xu ly nua) + bao Telegram 1 lan.
+    # Nguon nhan dien: ten repo (trap_repo_reason) HOAC khung mo ta mirror
+    # trong title/pack da luu (mirror_body_reason - bat duoc ho IES
+    # "Conformance Mirror" ma ten repo khong co dau hieu gi).
     for url, entry in list(state.items()):
         if entry.get("status") in ("new", "applied", "assigned", "working"):
-            reason = trap_repo_reason(url)
+            reason = (trap_repo_reason(url)
+                      or mirror_body_reason(entry.get("title"), entry.get("pack")))
             if reason:
                 entry["status"] = "skipped_trap"
                 entry["note"] = reason
