@@ -25,14 +25,24 @@ lai khi token thay), loi tam thoi backoff toi da 30 phut; loi tung keo/tung
 diem nap duoc cach ly + dem vao STATUS, loi toan vong khong giet job.
 
 MAY TRANG THAI (luan chot 18:01 10/11 - nhieu keo phai THANG/DUOC CHON truoc):
-  mode=lam_ngay      : mo tu do -> lam san pham ngay (working) -> nop (submitted)
-  mode=cho_duoc_chon : phai duoc giao viec truoc:
+  mode=lam_ngay      : CHI khi issue NOI RO moi lam ngay (OPEN_SIGNALS:
+                       "first pr", "no assignment needed", "just open a pr",
+                       "go ahead"...) -> lam san pham ngay + mo PR nhap ngay,
+                       duoc UU TIEN xu ly dau vong.
+  mode=cho_duoc_chon : issue cam lam truoc (ASSIGN_SIGNALS) HOAC issue IM LANG
+                       (khong moi, khong cam) -> MAC DINH CHO, ke ca keo code
+                       co ngan sach ro (im lang = cho, khong tu lam truoc):
       new -> applied (sinh APPLY.md = don xin nhan viec; gui comment that
              bang GITHUB_PAT neu co, chua co PAT thi don nam san trong repo)
           -> assigned (issue duoc assign cho minh / chu xac nhan / label)
           -> working (luc nay moi lam san pham) -> submitted -> cho_tra
           -> da_tra (CHI khi co bang chung tien ve - doer khong tu suy doan)
       applied ma issue dong / co nguoi khac nhan -> lost; cho qua lau -> het_han
+      (ca hai deu bao Telegram 1 lan o vong chuyen trang thai; don applied
+      cho >= 3 ngay chua phan hoi -> moi ngay 1 tin tong hop "don dang ngam")
+  Phan loai lai MOI VONG cho keo applied: tin hieu moi xuat hien (sua mo ta /
+  comment maintainer "go ahead"...) -> tu doi nhanh theo tin hieu moi nhat;
+  moi keo ghi mode_reason ly do di nhanh do.
 
 Bien moi truong:
   WORKER_URL          mac dinh https://pepper-hunter.pepperresearch.workers.dev
@@ -55,6 +65,8 @@ from datetime import datetime, timezone, timedelta
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STATE_PATH = os.path.join(BASE_DIR, "state", "doer_state.json")
+META_PATH = os.path.join(BASE_DIR, "state", "doer_meta.json")
+SOAK_MIN_DAYS = 3
 STATUS_PATH = os.path.join(BASE_DIR, "STATUS.md")
 DELIV_DIR = os.path.join(BASE_DIR, "deliverables")
 
@@ -148,6 +160,7 @@ OPEN_SIGNALS = [
     "first pr", "first come", "first-come", "no assignment needed",
     "no need to be assigned", "no assignment", "just open a pr",
     "open a pr directly", "feel free to open a pr", "submit a pr directly",
+    "go ahead",
 ]
 ASSIGN_CONFIRM_WORDS = ["assigned", "go ahead", "all yours", "please proceed",
                         "you're on it", "you are on it", "feel free to start",
@@ -503,18 +516,31 @@ def classify_type(title, text):
     return "khac"
 
 
+def detect_signals(low_text):
+    """Quet 2 bo phrase tren van ban da lower-case. Tra (assign_hit, open_hit)
+    - moi gia tri la phrase dau tien khop hoac None. Thu tu uu tien khi dung:
+    ASSIGN (cam lam truoc) thang OPEN (moi lam ngay) vi an toan."""
+    a = next((s for s in ASSIGN_SIGNALS if s in low_text), None)
+    o = next((s for s in OPEN_SIGNALS if s in low_text), None)
+    return a, o
+
+
 def classify_mode(title, text, info):
-    """Tra (mode, ly do). Mac dinh cho_duoc_chon cho an toan."""
+    """LUAT MODE (chot cuoi 07:07 11/11 - 'tuy keo ma xu'):
+    - issue NOI RO moi lam ngay (OPEN_SIGNALS) -> lam_ngay.
+    - issue cam lam truoc (ASSIGN_SIGNALS) -> cho_duoc_chon.
+    - issue IM LANG (khong moi, khong cam) -> cho_duoc_chon MAC DINH, ke ca
+      keo code co ngan sach ro (im lang = cho, khong tu lam truoc).
+    Tra (mode, mode_reason)."""
     low = ((title or "") + " " + (text or "")).lower()
-    for s in ASSIGN_SIGNALS:
-        if s in low:
-            return "cho_duoc_chon", "issue co dau hieu cho giao viec: '%s'" % s
-    for s in OPEN_SIGNALS:
-        if s in low:
-            return "lam_ngay", "issue ghi ro mo tu do: '%s'" % s
+    a, o = detect_signals(low)
+    if a:
+        return "cho_duoc_chon", "issue cam lam truoc: '%s' -> cho duoc chon" % a
+    if o:
+        return "lam_ngay", "issue noi ro moi lam ngay: '%s' -> lam san pham + mo PR nhap ngay" % o
     if info and (info.get("comments") or 0) >= 5:
-        return "cho_duoc_chon", "issue da co nhieu comment (%d) - nghi nhieu nguoi xin nhan" % info["comments"]
-    return "cho_duoc_chon", "khong ro dau hieu mo tu do -> mac dinh cho duoc chon (an toan)"
+        return "cho_duoc_chon", "issue da co nhieu comment (%d) - nghi nhieu nguoi xin nhan -> cho duoc chon" % info["comments"]
+    return "cho_duoc_chon", "issue im lang (khong moi lam ngay, khong cam) -> mac dinh cho duoc chon"
 
 
 # ---------------------------------------------------------------- Prompt + template
@@ -862,35 +888,149 @@ def resend_apply(entry):
 
 
 def check_assignment(entry):
-    """Kiem tra don dang cho: duoc giao chua? Tra 'assigned'|'lost'|'het_han'|None."""
+    """Kiem tra don dang cho: duoc giao chua? Tra (verdict, ly_do):
+    verdict = 'assigned'|'lost'|'het_han'|None; ly_do phuc vu tin Telegram
+    khi thua (issue da dong / da giao cho ai)."""
     info = fetch_issue_info(entry["url"])
     if not info:
-        return None
+        return None, ""
     if OUR_USERNAME in (info.get("assignees") or []):
-        return "assigned"
+        return "assigned", ""
     labels = [l.lower() for l in (info.get("labels") or [])]
     if "assigned" in labels or "in-progress" in labels or "in progress" in labels:
-        return "assigned"
+        return "assigned", ""
     comments = fetch_issue_comments(entry["url"])
     for c in comments:
         body = (c.get("body") or "").lower()
         if OUR_USERNAME.lower() in body and any(w in body for w in ASSIGN_CONFIRM_WORDS):
-            return "assigned"
+            return "assigned", ""
         if (c.get("association") in ("OWNER", "MEMBER", "COLLABORATOR")
                 and "assign" in body and OUR_USERNAME.lower() in body):
-            return "assigned"
+            return "assigned", ""
     if info.get("state") == "closed":
-        return "lost"
+        return "lost", "issue da dong"
     others = [a for a in (info.get("assignees") or []) if a != OUR_USERNAME]
     if others:
-        return "lost"
+        return "lost", "da giao cho " + ", ".join("@" + a for a in others)
     try:
         applied = datetime.fromisoformat(entry.get("applied_at", "").replace("Z", "+00:00"))
         if (datetime.now(timezone.utc) - applied).days >= APPLIED_EXPIRE_DAYS:
-            return "het_han"
+            return "het_han", "cho qua %d ngay khong duoc phan hoi" % APPLIED_EXPIRE_DAYS
     except Exception:
         pass
-    return None
+    return None, ""
+
+
+def notify_application_ended(entry, verdict, reason):
+    """Bao Telegram khi 1 don cho ket thuc ma khong duoc chon: thua nguoi
+    khac (lost) hoac het han cho (het_han). Chi goi o vong CHUYEN trang thai
+    nen moi keo chi nhan dung 1 tin."""
+    if verdict == "lost":
+        telegram_send("[Pepper Hunter Doer] KEO VE NGUOI KHAC (thua)\n%s\nLink: %s\nLy do: %s"
+                      % (entry["title"], entry["url"], reason or "khong ro"))
+    elif verdict == "het_han":
+        telegram_send("[Pepper Hunter Doer] DON HET HAN CHO (%d ngay khong phan hoi)\n%s\nLink: %s"
+                      % (APPLIED_EXPIRE_DAYS, entry["title"], entry["url"]))
+
+
+def maybe_upgrade_mode(entry, pool, pool_state):
+    """Phan loai lai 1 keo dang APPLIED theo tin hieu MOI NHAT (ap dung hoi to
+    + bat tin hieu moi giua chung): quet lai mo ta issue hien tai + comment
+    cua maintainer (OWNER/MEMBER/COLLABORATOR).
+    - Xuat hien tin hieu CAM lam truoc -> giu cho_duoc_chon, ghi mode_reason.
+    - Xuat hien tin hieu MOI LAM NGAY (vd maintainer comment 'go ahead') ->
+      nang len lam_ngay: lam san pham ngay + mo PR nhap ngay (neu co PAT).
+    - Van im lang -> giu cho_duoc_chon, mode_reason ghi ro ly do.
+    Khong bao gio HA nhanh 1 keo da o lam_ngay. Tra True neu vua nang nhanh."""
+    if entry.get("mode") == "lam_ngay":
+        return False
+    info = fetch_issue_info(entry["url"])
+    # Tin hieu MOI NHAT thang: comment cua maintainer luon moi hon mo ta issue
+    # (vd mo ta ghi 'first pr' nhung maintainer vua comment 'ask before
+    # working' thi phai theo comment). Co tin hieu trong comment thi dung
+    # comment, khong co moi xet mo ta.
+    comments = fetch_issue_comments(entry["url"]) or []
+    mtext = " ".join((c.get("body") or "") for c in comments
+                     if c.get("association") in ("OWNER", "MEMBER", "COLLABORATOR")).lower()
+    a, o = detect_signals(mtext)
+    src = "comment maintainer"
+    if not a and not o:
+        low = ((entry.get("title") or "") + " " + ((info or {}).get("body") or "")
+               + " " + (entry.get("pack") or "")).lower()
+        a, o = detect_signals(low)
+        src = "mo ta issue"
+    if a:
+        reason = ("phan loai lai: xuat hien tin hieu cam lam truoc '%s' (%s) "
+                  "-> giu cho duoc chon" % (a, src))
+        if entry.get("mode_reason") != reason:
+            entry["mode_reason"] = reason
+        return False
+    if o:
+        entry["mode"] = "lam_ngay"
+        entry["mode_reason"] = ("phan loai lai: issue noi ro moi lam ngay '%s' (%s) "
+                                "-> lam san pham + mo PR nhap ngay, khong cho assign" % (o, src))
+        log("Nang nhanh lam_ngay (tin hieu '%s' tu %s): %s" % (o, src, entry["title"][:70]))
+        make_product(entry, pool, pool_state, info)
+        if entry.get("status") == "working" and (os.environ.get("GITHUB_PAT") or "").strip():
+            submit_github(entry)
+        return True
+    reason = "issue im lang (khong moi lam ngay, khong cam) -> mac dinh cho duoc chon"
+    if entry.get("mode_reason") != reason:
+        entry["mode_reason"] = reason
+    return False
+
+
+def load_meta():
+    try:
+        with open(META_PATH, encoding="utf-8") as f:
+            d = json.load(f)
+            return d if isinstance(d, dict) else {}
+    except Exception:
+        return {}
+
+
+def save_meta(meta):
+    os.makedirs(os.path.dirname(META_PATH), exist_ok=True)
+    with open(META_PATH, "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False, indent=1)
+
+
+def maybe_send_soak_report(state):
+    """Tin TONG HOP toi da 1 lan/ngay (tinh theo ngay VN): liet ke cac don
+    applied cho >= SOAK_MIN_DAYS ngay chua co phan hoi (van con o trang thai
+    applied). Moc ngay da gui luu o state/doer_meta.json (commit cung state
+    de khong gui lap giua cac run). Tra True neu vua gui thanh cong."""
+    today = (datetime.now(timezone.utc) + timedelta(hours=7)).strftime("%Y-%m-%d")
+    meta = load_meta()
+    if meta.get("soak_report_date") == today:
+        return False
+    waiting = []
+    now = datetime.now(timezone.utc)
+    for e in state.values():
+        if not isinstance(e, dict) or e.get("status") != "applied":
+            continue
+        try:
+            applied = datetime.fromisoformat((e.get("applied_at") or "").replace("Z", "+00:00"))
+        except Exception:
+            continue
+        days = (now - applied).days
+        if days >= SOAK_MIN_DAYS:
+            waiting.append((days, e))
+    if not waiting:
+        return False
+    waiting.sort(key=lambda kv: -kv[0])
+    lines = ["[Pepper Hunter Doer] DON DANG NGAM - %d don cho >= %d ngay chua phan hoi:"
+             % (len(waiting), SOAK_MIN_DAYS)]
+    for days, e in waiting[:15]:
+        lines.append("- %s - cho %d ngay\n  %s" % (e.get("title", ""), days, e.get("url", "")))
+    if len(waiting) > 15:
+        lines.append("... va %d don nua" % (len(waiting) - 15))
+    if telegram_send("\n".join(lines)):
+        meta["soak_report_date"] = today
+        save_meta(meta)
+        log("Da gui tin tong hop don dang ngam (%d don)" % len(waiting))
+        return True
+    return False
 
 
 def submit_github(entry):
@@ -1029,6 +1169,8 @@ def write_status(state, latest_ts, registered_this_cycle=0, cycle_errors=0):
                     extra = " - don: da soan, CHO PAT de gui"
             elif status == "skipped_trap":
                 extra = " - ly do: " + (e.get("note") or "repo bay bot")
+            if e.get("mode_reason") and status in ("new", "applied", "assigned", "working"):
+                extra += " | mode_reason: " + e["mode_reason"]
             lines.append("- [%s](%s) - %s/%s - %s%s"
                          % (e["title"][:90], e["url"], e.get("mode", "?"), e.get("type", "?"),
                             budget, extra))
@@ -1043,7 +1185,7 @@ def git_commit_push(msg):
     def run(args):
         return subprocess.run(args, cwd=BASE_DIR, capture_output=True, text=True, timeout=120)
     try:
-        run(["git", "add", "state/doer_state.json", "STATUS.md", "deliverables"])
+        run(["git", "add", "state/doer_state.json", "state/doer_meta.json", "STATUS.md", "deliverables"])
         st = run(["git", "status", "--porcelain"])
         if not (st.stdout or "").strip():
             return
@@ -1175,8 +1317,10 @@ def process_cycle(state, pool, pool_state):
                       % (len(state), ", ".join("%s=%d" % kv for kv in sorted(counts.items()))))
         log("Backfill thong bao cho %d keo cu" % backfilled)
 
-    # --- May trang thai
-    for url, entry in list(state.items()):
+    # --- May trang thai (keo lam_ngay duoc UU TIEN xu ly dau vong - sort on
+    # dinh: lam_ngay len truoc, cac keo con lai giu nguyen thu tu cu)
+    ordered = sorted(state.items(), key=lambda kv: 0 if (kv[1] or {}).get("mode") == "lam_ngay" else 1)
+    for url, entry in ordered:
         status = entry.get("status")
         before = json.dumps({k: v for k, v in entry.items() if k != "updated_at"},
                             sort_keys=True, ensure_ascii=False, default=str)
@@ -1185,11 +1329,14 @@ def process_cycle(state, pool, pool_state):
                 make_apply(entry, pool, pool_state, fetch_issue_info(url))
             elif status == "new" and entry.get("mode") == "lam_ngay":
                 make_product(entry, pool, pool_state, fetch_issue_info(url))
+                # Lam xong la mo PR nhap NGAY trong cung vong (khong cho assign)
+                if entry.get("status") == "working" and (os.environ.get("GITHUB_PAT") or "").strip():
+                    submit_github(entry)
             elif status == "applied":
                 if not entry.get("apply_sent"):
                     ensure_apply_file_money(entry)
                     resend_apply(entry)
-                verdict = check_assignment(entry)
+                verdict, verdict_reason = check_assignment(entry)
                 if verdict == "assigned":
                     entry["status"] = "assigned"
                     entry["assigned_at"] = now_iso()
@@ -1199,13 +1346,27 @@ def process_cycle(state, pool, pool_state):
                 elif verdict in ("lost", "het_han"):
                     entry["status"] = verdict
                     entry["note"] = "don cho ket thuc: " + verdict
+                    notify_application_ended(entry, verdict, verdict_reason)
+                else:
+                    # Chua co phan hoi: phan loai lai theo tin hieu moi nhat -
+                    # issue vua moi lam ngay thi nang nhanh lam san pham ngay.
+                    maybe_upgrade_mode(entry, pool, pool_state)
             elif status == "assigned":
                 make_product(entry, pool, pool_state, fetch_issue_info(url))
             elif status == "working":
-                if (os.environ.get("GITHUB_PAT") or "").strip():
-                    submit_github(entry)
-                elif entry.get("note") != "san pham da xong - CHO PAT de nop PR":
-                    entry["note"] = "san pham da xong - CHO PAT de nop PR"
+                # Keo goc applied duoc nang nhanh lam-ngay: van canh thua binh
+                # thuong (issue dong / nguoi khac duoc giao -> lost + bao).
+                if entry.get("apply_sent"):
+                    v2, r2 = check_assignment(entry)
+                    if v2 == "lost":
+                        entry["status"] = "lost"
+                        entry["note"] = "keo ve nguoi khac trong luc dang lam (PR nhap neu da mo thi bo)"
+                        notify_application_ended(entry, "lost", r2)
+                if entry.get("status") == "working":
+                    if (os.environ.get("GITHUB_PAT") or "").strip():
+                        submit_github(entry)
+                    elif entry.get("note") != "san pham da xong - CHO PAT de nop PR":
+                        entry["note"] = "san pham da xong - CHO PAT de nop PR"
             elif status == "submitted":
                 check_submitted(entry)
             elif status == "da_tra" and not entry.get("paid_notified"):
@@ -1220,6 +1381,14 @@ def process_cycle(state, pool, pool_state):
         if after != before:
             entry["updated_at"] = now_iso()
             changed = True
+
+    # --- Nhac "don dang ngam": toi da 1 tin tong hop/ngay (moc trong meta file)
+    try:
+        if maybe_send_soak_report(state):
+            changed = True
+    except Exception as e:
+        cycle_errors += 1
+        log("Loi bao don dang ngam: %s" % e)
 
     if cycle_errors:
         log("Vong nay co %d loi da cach ly (khong chet vong)" % cycle_errors)

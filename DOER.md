@@ -42,8 +42,13 @@ Repo có **owner hoặc tên chứa `trap` / `honeypot` / `benchmark`** = bẫy 
 
 Nhiều kèo **phải thắng/được chọn trước mới được làm** (kiểu Synmerco thắng bid, sàn assignment kiểu Algora/Opire). Mỗi kèo có trường `mode`:
 
-- **`lam_ngay`** — mở tự do, nộp trước thắng trước. Dấu hiệu: issue ghi "first PR", "no assignment needed", "just open a PR"... → làm sản phẩm ngay.
-- **`cho_duoc_chon`** — phải được giao việc trước. Dấu hiệu: "comment to be assigned", "ask before working", "will assign", nhắc Algora/Opire, hoặc issue đã nhiều comment xin nhận. **Không rõ → mặc định `cho_duoc_chon`** (an toàn, tránh làm không công).
+> **LUẬT MODE CHỐT CUỐI (Luân chốt 07:06–07:07 11/11 — "tùy kèo mà xử")**: nền là các kèo thua đều thua trước đối thủ nộp PR/sản phẩm sẵn, nhưng KHÔNG vì thế mà tự làm trước khi chưa được mời. Chỉ 3 nhánh:
+
+- **`lam_ngay`** — CHỈ khi issue **nói rõ mời làm ngay**: "first PR", "first come", "no assignment needed", "no need to be assigned", "just open a PR", "open a PR directly", "go ahead"... → làm sản phẩm ngay + mở PR nháp ngay trong cùng vòng, và các kèo này được **ưu tiên xử lý đầu vòng**.
+- **`cho_duoc_chon`** — issue **cấm làm trước**: "comment to be assigned", "ask before working", "will assign", nhắc Algora/Opire, hoặc issue đã nhiều comment xin nhận.
+- **`cho_duoc_chon` (mặc định)** — issue **IM LẶNG** (không mời làm ngay, không cấm): **im lặng = chờ-được-chọn, kể cả kèo code có ngân sách rõ** — không tự làm trước.
+
+Mỗi kèo ghi trường **`mode_reason`** trong state (và hiện trong STATUS.md ở các dòng new/applied/assigned/working) để đối chiếu vì sao kèo đi nhánh đó. **Phân loại lại MỖI VÒNG** cho kèo đang `applied` (`maybe_upgrade_mode`): tín hiệu mới nhất thắng — comment của maintainer mới hơn mô tả issue (mô tả ghi "first PR" nhưng maintainer vừa comment "ask before working" thì phải chờ); maintainer comment "go ahead" → tự nâng lên `lam_ngay`, làm sản phẩm + mở PR nháp ngay; ngược lại vẫn im lặng thì giữ chờ. Kèo đã ở `lam_ngay` không tự hạ nhánh. Kèo gốc `applied` được nâng lên làm sản phẩm vẫn **canh thua bình thường** ở trạng thái `working` (issue đóng / người khác được giao → `lost` + báo Telegram).
 
 ### Luồng `cho_duoc_chon`
 
@@ -55,7 +60,7 @@ Nhiều kèo **phải thắng/được chọn trước mới được làm** (ki
 
 ### Luồng `lam_ngay`
 
-`new` → làm sản phẩm ngay (`working`) → nộp ngay (`submitted`) → `cho_tra` → `da_tra` (theo bằng chứng).
+`new` → làm sản phẩm ngay (`working`) → **mở PR nháp ngay trong cùng vòng** (`submitted`) → `cho_tra` → `da_tra` (theo bằng chứng). Kèo `applied` được nâng nhánh lên cũng đi tiếp đúng luồng này từ trạng thái `working`.
 
 ### Trạng thái kết thúc khác
 
@@ -74,9 +79,16 @@ Nhiều kèo **phải thắng/được chọn trước mới được làm** (ki
 
 **NHAN KEO MOI VAO XU LY** (kèm mode + ngân sách, ngay khi đăng ký) · **BAT DAU XU LY** (khi bắt đầu sinh đơn/sản phẩm) · đã nộp đơn (gửi thật hoặc "đã soạn, chờ PAT") · **ĐƯỢC CHỌN** · đã nộp bài · tiền về (`da_tra`, chỉ khi có bằng chứng).
 
+**Thông báo kết thúc đơn chờ (thêm 11/11):**
+
+- **"KEO VE NGUOI KHAC (thua)"** — bắn đúng 1 lần ở vòng chuyển sang `lost`, kèm tiêu đề + link + lý do (`check_assignment` trả kèm lý do: "issue da dong" hoặc "da giao cho @user..."). Trước đây nhánh này chỉ ghi status/note, không có Telegram.
+- **"DON HET HAN CHO (30 ngay khong phan hoi)"** — bắn đúng 1 lần ở vòng chuyển sang `het_han` (chờ quá `APPLIED_EXPIRE_DAYS`).
+- **"DON DANG NGAM"** — tin **tổng hợp**, mỗi ngày tối đa 1 tin: liệt kê các đơn `applied` đã chờ **≥ 3 ngày** chưa có phản hồi (tiêu đề + số ngày chờ + link, tối đa 15 đơn, sắp xếp chờ lâu nhất trước). Chỉ gửi khi có ít nhất 1 đơn đạt ngưỡng; mốc ngày đã gửi lưu ở `state/doer_meta.json` (`soak_report_date`, giờ VN UTC+7) để không bắn trùng trong ngày — không bắn từng đơn lẻ.
+
 ## Vận hành
 
-- `state/doer_state.json` (trong repo): `{url: {title, slug, type, mode, status, budget_usd, files, applied_at, assigned_at, submitted_at, pr_url, ...}}` — doer commit sau mỗi vòng.
+- `state/doer_state.json` (trong repo): `{url: {title, slug, type, mode, mode_reason, status, budget_usd, files, applied_at, assigned_at, submitted_at, pr_url, ...}}` — doer commit sau mỗi vòng.
+- `state/doer_meta.json` (trong repo): mốc phụ trợ ngoài state kèo — hiện dùng cho `soak_report_date` (ngày đã gửi tin tổng hợp "đơn đang ngâm"), commit cùng state.
 - `STATUS.md` (gốc repo): giờ chạy, số kèo từng trạng thái, hàng chờ được chọn, việc đã nộp — commit cùng state.
 - Chống chạy trùng: `concurrency: pepper-hunter-doer`. Tự nối run: cuối job (còn ~150 giây) gọi `gh workflow run doer.yml` bằng `GITHUB_TOKEN` (permissions `actions: write` + `contents: write`).
 - Thiếu secret nào doer **log rõ "chưa cấu hình"** và chạy ở chế độ suy giảm tương ứng (không Gemini → template offline; không PAT → chỉ soạn, không gửi/nộp; không Telegram → chỉ log) — không chết vòng lặp, không im lặng.
