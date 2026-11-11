@@ -62,7 +62,11 @@ GitHub (make_apply, resend_apply, submit_github) deu co chot chan
 outbound_guard() tra "held_outbound_off" va gui 0 request khi OFF. Keo moi
 qua kiem chung tien that -> trang thai cho_duyet (cho Luan duyet) + dung 1
 tin Telegram loai "choduyet"; theo doi keo cu (assign/merge/dong) van chay
-binh thuong. Muon mo lai outbound BAT BUOC sua control.json thanh
+binh thuong - rieng phat hien DUOC GIAO viec tren keo dang theo doi thi
+bao Telegram "DUOC GIAO KEO" + ghi assigned nhung van khong tu lam/tu nop
+(chuyen qua chat xu ly co giam sat). Moi wording trang thai/thong bao
+phai xưng la cong cu tu dong cua du an ca nhan - cam dong vai nguoi that
+hay "nha nghien cuu doc lap" (chot 19:08 11/11). Muon mo lai outbound BAT BUOC sua control.json thanh
 {"outbound": true} roi commit - hanh dong co y, khong co duong tu bat.
 Kem lenh 19:01 11/11 (he bao qua nhieu): o che do hunt-only, Telegram CHI
 nhan tin loai "choduyet" va "incident" (su co that: loi toan vong, cong
@@ -517,15 +521,18 @@ def telegram_send(text):
 
 
 # --- Cong thong bao Telegram theo che do (kem hunt-only, lenh Luan 19:01
-# 11/11 - he bao qua nhieu): khi outbound OFF (hunt-only), Telegram CHI
-# nhan 2 loai tin: "choduyet" (keo moi co tien that dang cho Luan duyet)
-# va "incident" (su co that: loi toan vong cua chuoi, cong chan keo bay /
-# keo khong tien that). Moi tin "routine" (nhan keo moi, bat dau xu ly,
-# duoc chon, thua nguoi khac, het han cho, da nop bai, tien ve, don dang
-# ngam, hoi phuc kenh...) bi GAT - chi ghi log, khong gui. Outbound ON thi
-# moi tin gui nhu cu. STATUS.md khong qua cong nay (chi la file commit).
+# 11/11 - he bao qua nhieu; bo sung "assigned" 19:08): khi outbound OFF
+# (hunt-only), Telegram CHI nhan 3 loai tin: "choduyet" (keo moi co tien
+# that dang cho Luan duyet), "assigned" (keo dang theo doi vua duoc
+# maintainer giao cho Luando-tester - bao ngay de chuyen qua chat xu ly co
+# giam sat; doer khong tu lam/tu nop) va "incident" (su co that: loi toan
+# vong cua chuoi, cong chan keo bay / keo khong tien that). Moi tin
+# "routine" (nhan keo moi, bat dau xu ly, thua nguoi khac, het han cho, da
+# nop bai, tien ve, don dang ngam, hoi phuc kenh...) bi GAT - chi ghi log,
+# khong gui. Outbound ON thi moi tin gui nhu cu. STATUS.md khong qua cong
+# nay (chi la file commit).
 def notify(text, kind="routine"):
-    if not outbound_enabled() and kind not in ("choduyet", "incident"):
+    if not outbound_enabled() and kind not in ("choduyet", "incident", "assigned"):
         log("Telegram BI GAT (hunt-only, tin '%s'): %s"
             % (kind, (text or "").split("\n")[0][:140]))
         return False
@@ -762,8 +769,15 @@ def register_deal(state, deal):
     state[url] = entry
     if entry["status"] in ("new", "assigned"):
         budget_txt = ("$" + str(entry["budget_usd"])) if entry.get("budget_usd") else "chua ghi"
-        if notify("[Pepper Hunter Doer] NHAN KEO MOI VAO XU LY: %s | mode: %s | ngan sach: %s\nLink: %s"
-                  % (entry["title"], entry.get("mode", "?"), budget_txt, url)):
+        if entry["status"] == "assigned" and not outbound_enabled():
+            # Keo vua phat hien da duoc giao san cho minh (hunt-only): bao
+            # DUOC GIAO KEO ngay nhu moi phat hien giao viec khac - doer
+            # khong tu lam/tu nop, cho xu ly co giam sat qua chat.
+            if notify("[Pepper Hunter Doer] DUOC GIAO KEO (hunt-only - khong tu lam, khong tu nop)\n%s\nLink: %s\nKeo da duoc giao san cho Luando-tester ngay khi phat hien. Doer la cong cu tu dong nen chi ghi nhan + bao ngay: khong tu lam san pham, khong tu mo PR. Viec lam keo se duoc xu ly co giam sat qua chat."
+                      % (entry["title"], url), kind="assigned"):
+                entry["notified_registered"] = True
+        elif notify("[Pepper Hunter Doer] NHAN KEO MOI VAO XU LY: %s | mode: %s | ngan sach: %s\nLink: %s"
+                    % (entry["title"], entry.get("mode", "?"), budget_txt, url)):
             entry["notified_registered"] = True
         log("Da dang ky keo (%s/%s/%s): %s"
             % (entry["status"], entry.get("mode", "?"), entry.get("type", "?"), entry["title"][:70]))
@@ -875,10 +889,11 @@ def deal_context(deal, info):
 # CHUYEN DOI duoc sang keo nay + ke hoach cu the. CAM TUYET DOI: nhan kinh
 # nghiem voi repo/project/codebase dich, khach hang cu, hay bat ky thu gi
 # ngoai ho so nay. Co them LINT sau soan chan don bia truoc khi gui.
-REAL_PROFILE = ("PepperResearch - independent researcher/writer: cited research briefs and "
-                "crypto/web3 research articles (published on dev.to), Python automation and "
-                "Telegram bots (products listed on Gumroad and itch.io), data collection and "
-                "research tasks. GitHub: Luando-tester.")
+REAL_PROFILE = ("PepperResearch is an automated tool/agent run as a personal project by its "
+                "owner (GitHub: Luando-tester) - not a person. What it can actually offer: "
+                "cited research briefs and crypto/web3 research articles (published on dev.to), "
+                "Python automation and Telegram bots (products listed on Gumroad and itch.io), "
+                "data collection and research tasks.")
 REAL_CLAIM_KEYS = ["research", "dev.to", "python", "telegram", "gumroad", "itch.io",
                    "itch", "data collection", "automation", "writing", "writer",
                    "brief", "github", "crypto", "web3"]
@@ -1052,14 +1067,19 @@ def ensure_ask_money(text, deal):
 
 
 def template_apply(deal):
+    # Danh xung bat buoc (Luan chot 19:08 11/11): chi duoc xuat hien voi tu
+    # cach CONG CU TU DONG cua du an ca nhan - khong bao gio dong vai nguoi
+    # that / "nha nghien cuu doc lap".
     lines = [
-        "Hi! I'm PepperResearch — I'd like to take on this issue.",
+        "Hi! This is PepperResearch — an automated tool/agent operated as a personal "
+        "project by its owner (GitHub: Luando-tester), not a person. This account "
+        "would like to take on this issue.",
         "",
-        "My plan: 1) study the task and the codebase/materials, 2) implement it in a "
+        "Plan: 1) study the task and the codebase/materials, 2) implement it in a "
         "separate branch / draft, 3) test it locally against the requirements, "
         "4) open a pull request / deliver the work referencing this issue.",
-        "My ETA is 3 days from assignment. If the task is still open, please assign "
-        "it to me or confirm that I can proceed. Thank you!",
+        "ETA is 3 days from assignment. If the task is still open, please assign "
+        "it to @Luando-tester or confirm that work can proceed. Thank you!",
     ]
     if not deal.get("budget_usd"):
         lines += ["", ASK_MONEY_EN]
@@ -1701,6 +1721,7 @@ def write_status(state, latest_ts, registered_this_cycle=0, cycle_errors=0):
     vn = datetime.now(timezone.utc) + timedelta(hours=7)
     lines = ["# Pepper Hunter Doer - STATUS",
              "",
+             "He thong: Pepper Hunter Doer - cong cu tu dong (agent) thuoc du an ca nhan cua chu so huu (GitHub: Luando-tester), khong phai nguoi that.",
              "Dang chay binh thuong - cap nhat %s VN, tong keo dang theo doi: %d, moi dang ky vong nay: %d, loi da cach ly vong nay: %d"
              % (vn.strftime("%H:%M"), len(state), registered_this_cycle, cycle_errors),
              "Cap nhat: %s (VN) / %s (UTC)" % (vn.strftime("%Y-%m-%d %H:%M:%S"),
@@ -1994,12 +2015,19 @@ def process_cycle(state, pool, pool_state):
                     if verdict == "assigned":
                         entry["status"] = "assigned"
                         entry["assigned_at"] = now_iso()
-                        notify("[Pepper Hunter Doer] DUOC CHON!\n%s\nLink: %s\nBat dau lam san pham ngay."
-                               % (entry["title"], url))
                         if outbound_enabled():
+                            notify("[Pepper Hunter Doer] DUOC CHON!\n%s\nLink: %s\nBat dau lam san pham ngay."
+                                   % (entry["title"], url))
                             make_product(entry, pool, pool_state, fetch_issue_info(url))
                         else:
-                            log("HELD outbound_off: da duoc chon nhung KHONG lam san pham (hunt-only): %s" % url)
+                            # HUNT-ONLY (bo sung 19:08): phat hien duoc giao
+                            # viec thi BAO NGAY bang tin DUOC GIAO KEO + ghi
+                            # nhan assigned, nhung TUYET DOI khong tu lam
+                            # san pham, khong tu nop PR - viec lam keo duoc
+                            # chuyen qua chat de xu ly co giam sat.
+                            notify("[Pepper Hunter Doer] DUOC GIAO KEO (hunt-only - khong tu lam, khong tu nop)\n%s\nLink: %s\nMaintainer da giao keo cho Luando-tester. Doer la cong cu tu dong nen chi ghi nhan + bao ngay: khong tu lam san pham, khong tu mo PR. Viec lam keo se duoc xu ly co giam sat qua chat."
+                                   % (entry["title"], url), kind="assigned")
+                            log("DUOC GIAO KEO (hunt-only - cho xu ly co giam sat qua chat): %s" % url)
                     elif verdict in ("lost", "het_han"):
                         entry["status"] = verdict
                         entry["note"] = "don cho ket thuc: " + verdict
