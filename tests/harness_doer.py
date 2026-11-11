@@ -23,9 +23,12 @@ Bo sung sau lenh hunt-only (18:59 + 19:01 11/11):
       dung 1 tin Telegram loai "choduyet", 0 POST; keo moi lam ngay
       (first-PR) cung chi cho_duyet; submit/resend/make_apply bi
       held_outbound_off; theo doi keo cu (applied -> assigned,
-      submitted -> cho_tra) van cap nhat state; tin Telegram "routine"
-      (duoc chon, nhan keo, don dang ngam...) bi gat, tin "incident" (chan
-      keo khong tien) van gui.
+      submitted -> cho_tra) van cap nhat state; phat hien DUOC GIAO viec
+      thi bao Telegram "DUOC GIAO KEO" (loai "assigned") nhung khong tu
+      lam/tu nop; tin Telegram "routine" (nhan keo, thua, don dang ngam...)
+      bi gat, tin "incident" (chan keo khong tien) van gui. Wording chi
+      duoc xung la cong cu tu dong cua du an ca nhan - khong "independent
+      researcher", khong dong vai nguoi.
   LUU Y: cac ca "gui that" cu (don sach gui nguyen van, resend thay
   template roi gui, doan hoi tien) nay chi con y nghia khi outbound duoc
   BAT CO Y bang control.json - harness bat outbound tuong minh cho rieng
@@ -425,7 +428,7 @@ check("(h) hunt-only: keo first-PR van chi cho_duyet - 0 POST, khong san pham",
       (e_h2.get("status"), POSTS, e_h2.get("files")))
 
 # (h3) Theo doi keo cu: applied -> duoc assign that -> state cap nhat
-# assigned, NHUNG khong lam san pham, 0 POST, tin DUOC CHON (routine) bi gat
+# assigned + dung 1 tin DUOC GIAO KEO, NHUNG khong lam san pham, 0 POST
 H3_KEY = ("acme", "data-tools", 24)
 ISSUES[H3_KEY] = raw_issue("Write API integration tests ($180)",
                            "Reward $180 USD via Opire.", labels=["bounty"],
@@ -443,8 +446,8 @@ check("(h) hunt-only: applied duoc assign -> state van cap nhat 'assigned'",
       e_h3.get("status") == "assigned", e_h3.get("status"))
 check("(h) hunt-only: duoc chon - 0 POST, khong lam san pham",
       len(POSTS) == 0 and e_h3.get("files") == [], (POSTS, e_h3.get("files")))
-check("(h) hunt-only: tin DUOC CHON (routine) bi gat - 0 tin Telegram",
-      len(new_tg) == 0, new_tg)
+check("(h) hunt-only: duoc giao keo -> dung 1 tin DUOC GIAO KEO",
+      len(new_tg) == 1 and "DUOC GIAO KEO" in new_tg[0], new_tg)
 
 # (h3b) Theo doi keo cu: submitted + PR da merged -> cho_tra
 H3B_KEY = ("acme", "data-tools", 27)
@@ -459,6 +462,31 @@ doer.process_cycle(st_h3b, POOL, POOL_STATE)
 check("(h) hunt-only: submitted co PR merged -> cho_tra (theo doi van chay)",
       e_h3b.get("status") == "cho_tra" and len(POSTS) == 0,
       (e_h3b.get("status"), POSTS))
+
+# (h4) Keo vua phat hien da duoc giao san cho Luando-tester (dang ky phat
+# hien assignee la minh): ghi nhan assigned + dung 1 tin DUOC GIAO KEO
+H4_KEY = ("acme", "data-tools", 28)
+ISSUES[H4_KEY] = raw_issue("Translate the docs pack ($90)",
+                           "Reward $90 USD via Opire.", labels=["bounty"],
+                           assignees=["Luando-tester"])
+st_h4 = {}
+tg0 = len(TG)
+ent_h4 = doer.register_deal(st_h4, {"title": ISSUES[H4_KEY]["title"],
+                                    "url": "https://github.com/%s/%s/issues/%d" % H4_KEY,
+                                    "budget_usd": 90.0, "pack": "Reward $90 USD via Opire."})
+new_tg = TG[tg0:]
+check("(h) hunt-only: keo phat hien da giao san -> assigned + 1 tin DUOC GIAO KEO",
+      ent_h4 is not None and ent_h4.get("status") == "assigned"
+      and len(new_tg) == 1 and "DUOC GIAO KEO" in new_tg[0],
+      (ent_h4 and ent_h4.get("status"), new_tg))
+
+# Wording: ho so that + template an toan khong con xung "independent
+# researcher" / nguoi that - chi la cong cu tu dong cua du an ca nhan
+check("(h) wording: REAL_PROFILE + template khong dong vai nguoi/nghien cuu doc lap",
+      "independent researcher" not in doer.REAL_PROFILE
+      and "automated tool/agent" in doer.REAL_PROFILE
+      and "automated tool/agent" in doer.template_apply({"title": "X", "url": h1_url, "budget_usd": 5}),
+      doer.REAL_PROFILE[:100])
 
 # ============================================================ single-flight
 CALLS = []
