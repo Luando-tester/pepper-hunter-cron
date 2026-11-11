@@ -23,6 +23,27 @@ Sự kiện Telegram khi nạp kèo: **"NHAN KEO MOI VAO XU LY: \<title\> | mode
 
 Repo có **owner hoặc tên chứa `trap` / `honeypot` / `benchmark`** = bẫy dụ bot săn bounty (mẫu đã xác nhận: `PhanKhoa95/oss-bot-trap-benchmark` — 2 "kèo" $1.500/$1.600 không tiền thật). Luật áp **nhất quán ở cả 3 tầng** (`doer.py` + `hunter.py` + `worker/worker.js`): không đăng ký mới ở mọi intake; kèo đã lỡ nằm trong state thì doer tự chuyển **`skipped_trap`** kèm lý do hiện trong STATUS.md, không bao giờ gửi đơn, và báo Telegram "BO QUA KEO BAY BOT" 1 lần/kèo (cờ `trap_notified`, thử lại mỗi vòng tới khi gửi được). Chỉ xét owner/tên repo trong URL — không xét title/body để tránh bắt nhầm.
 
+## Cổng kiểm chứng trước gửi + đơn chỉ dựa trên hồ sơ thật (vá khẩn 11/11 — sự cố SS14#44876)
+
+**Sự cố**: lưới nới rộng vét trúng issue `space-wizards/space-station-14#44876` — đó là **báo lỗi cơ chế "bounty" TRONG GAME** (đặt gói hàng chứa bounty vào container khác thì ăn tiền thưởng game), không phải kèo trả tiền. Doer bản cũ gửi đơn Gemini soạn sẵn, trong đơn còn **bịa "strong experience in Space Station 14 codebase"** → bị cộng đồng cười ("grok is this real?"), agent cha phải xóa comment tay và dừng chuỗi. Hai lỗ hổng: (1) cổng sạch chỉ nhìn từ khoá/bẫy repo, không kiểm chứng **tín hiệu tiền thật**; (2) prompt soạn đơn không khóa nguồn giới thiệu nên Gemini tự bịa kinh nghiệm theo ngữ cảnh issue. Vá ở **doer** (chốt chặn cuối — Worker không bị đụng lượt này):
+
+### 1. `presend_verify` — không có tín hiệu tiền thật thì không có gì rời hệ thống
+
+Trước **mọi** đường gửi ra ngoài — `make_apply` (đơn mới), `resend_apply` qua nhánh `applied` (đơn gửi bổ sung), nâng nhánh `lam_ngay` trong `maybe_upgrade_mode`, nhánh `lam_ngay` cho kèo `new`, và `submit_github` (chốt chặn cuối trước khi fork/mở PR) — doer **fetch lại issue mới nhất** (`fetch_issue_info`: title + body + labels) và yêu cầu có **tín hiệu tiền thật** ở title/body/labels: mẫu `$ + số`, `số + USD/USDC/USDT`, nhắc nền tảng trả (**algora/opire**), hoặc **label bounty chính thức**. Chỉ khớp từ khoá "bounty" mà không có tín hiệu tiền → **CHẶN**: kèo chuyển trạng thái mới **`skipped_nopay`** (hiện trong STATUS.md kèm lý do), ghi `note` lý do (nếu labels có dấu hiệu ngữ cảnh game/bug-report kiểu `T: Bugfix`, `A: …` thì lý do ghi rõ "nghi 'bounty' là cơ chế ảo"), và báo Telegram **"BO QUA KEO - KHONG CO TIN HIEU TIEN THAT"** đúng 1 lần/kèo (cờ `nopay_notified`). Không đọc được issue để kiểm chứng cũng chặn (thà mất lượt còn hơn gửi mù). Nhờ gắn ở cả nhánh gửi bổ sung + `submit_github`, các kèo đã đăng ký từ trước khi có cổng này cũng bị chặn hồi tố.
+
+### 2. Title aggregator rác — loại ngay từ intake
+
+Title khớp mẫu `bounty alert | new paid opportunit… | new opportunities | opportunities today` (bài đăng lại kiểu "Bounty Alert: 14 New Opportunities…") bị bỏ qua ở **cả 2 intake** (`fetch_bounty_candidates` của intake 2 và `register_deal` dùng chung cho intake 1) — không đăng ký, không tốn lượt Gemini. `presend_verify` cũng kiểm lại mẫu này như lớp dự phòng.
+
+### 3. Đơn chỉ được dựa trên HỒ SƠ THẬT + LINT chống bịa
+
+- Khối **`REAL_PROFILE`** là nguồn giới thiệu **duy nhất** được phép dùng: *"PepperResearch — independent researcher/writer: cited research briefs and crypto/web3 research articles (published on dev.to), Python automation and Telegram bots (products listed on Gumroad and itch.io), data collection and research tasks. GitHub: Luando-tester."* `prompt_apply` (và đoạn tự giới thiệu trong `prompt_product`) nhúng nguyên khối này kèm lệnh cấm tuyệt đối: **không nhận kinh nghiệm với repo/project/codebase đích, khách hàng cũ, hay bất cứ thứ gì ngoài hồ sơ thật** — chỉ được liên hệ năng lực *chuyển đổi được* + kế hoạch cụ thể cho issue.
+- **`lint_application`** chạy sau soạn, trước gửi (áp cho cả đơn mới lẫn thân đơn lấy lại từ APPLY.md khi gửi bổ sung): câu nhận kinh nghiệm bị bắt khi (1) chạm tên owner/repo/từ đặc trưng trong title của issue đích, hoặc (2) nhận kinh nghiệm với "codebase" (hồ sơ thật không có mục này), hoặc (3) không chứa bất kỳ năng lực nào của hồ sơ thật. Bắt được → **vứt draft, thay bằng `template_apply` an toàn** (chỉ hồ sơ thật dạng chung + kế hoạch + ETA + đoạn hỏi tiền nếu chưa ghi ngân sách), ghi `apply_lint_blocked` vào state. Harness đã chứng minh lint bắt đúng câu bịa của sự cố ("strong experience in Space Station 14 codebase logic") và không bắt nhầm đơn dựa trên hồ sơ thật.
+
+### 4. Nhịp bắn Telegram
+
+`telegram_send` (cả `doer.py` lẫn `watches/watch.py`): giãn tối thiểu **3,5 giây** giữa 2 tin liên tiếp (`TG_MIN_GAP_SEC`), gặp **429 thì tôn trọng `retry_after`** của Telegram, chờ rồi gửi lại tối đa 2 lần — vá sự cố bắn 12 tin cùng lúc bị rớt 4 tin.
+
 ## Xử lý trọn vòng — không kèo nào chết đứng (thêm 19:58 10/11)
 
 - **Kèo chưa ghi ngân sách**: đơn luôn kèm đoạn hỏi tiền bắt buộc (`ASK_MONEY_EN`). Gemini quên chèn → code tự nối (`ensure_ask_money`); APPLY.md soạn từ các bản cũ thiếu đoạn hỏi → doer tự bổ sung vào file trước khi gửi (`ensure_apply_file_money`).

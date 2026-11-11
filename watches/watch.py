@@ -137,6 +137,35 @@ def http_curl(method, url, headers=None, obj=None, timeout=60):
         return 0, None
 
 # ------------------------------------------------------------------ telegram
+# --- Nhip ban Telegram: toi thieu TG_MIN_GAP_SEC giua 2 tin lien tiep
+# (ban loat cung luc bi Telegram 429 rot tin); gap 429 thi ton trong
+# retry_after, cho roi gui lai toi da 2 lan. Dong bo voi doer.py.
+TG_MIN_GAP_SEC = float(os.environ.get("TG_MIN_GAP_SEC") or 3.5)
+_TG_LAST_SEND = [0.0]
+
+
+def _tg_wait_turn():
+    wait = _TG_LAST_SEND[0] + TG_MIN_GAP_SEC - time.monotonic()
+    if wait > 0:
+        time.sleep(wait)
+    _TG_LAST_SEND[0] = time.monotonic()
+
+
+def _tg_post_once(token, chat, text):
+    st, raw = http_req("POST", "https://api.telegram.org/bot%s/sendMessage" % token,
+                       {"Content-Type": "application/json"},
+                       json.dumps({"chat_id": chat, "text": text[:3900]}).encode(), timeout=30)
+    ok, retry_after = False, None
+    try:
+        d = json.loads(raw.decode("utf-8", "replace"))
+        ok = st == 200 and d.get("ok") is True
+        if not ok:
+            retry_after = (d.get("parameters") or {}).get("retry_after")
+    except Exception:
+        ok = False
+    return ok, st, retry_after
+
+
 def telegram_send(text):
     token = (os.environ.get("TELEGRAM_BOT_TOKEN") or "").strip()
     chats = []
@@ -149,13 +178,19 @@ def telegram_send(text):
         return False
     ok_main = False
     for _i, chat in enumerate(chats):
-        st, raw = http_req("POST", "https://api.telegram.org/bot%s/sendMessage" % token,
-                           {"Content-Type": "application/json"},
-                           json.dumps({"chat_id": chat, "text": text[:3900]}).encode(), timeout=30)
-        try:
-            ok = st == 200 and json.loads(raw.decode()).get("ok") is True
-        except Exception:
-            ok = False
+        ok, st = False, 0
+        for attempt in range(3):
+            _tg_wait_turn()
+            ok, st, retry_after = _tg_post_once(token, chat, text)
+            if ok:
+                break
+            if st == 429 or retry_after:
+                delay = max(float(retry_after or 5), TG_MIN_GAP_SEC)
+                log("Telegram 429 (chat %d, lan gui %d) - cho %.0fs roi gui lai"
+                    % (_i + 1, attempt + 1, delay))
+                time.sleep(delay)
+            else:
+                break
         if _i == 0:
             ok_main = ok
         if not ok:

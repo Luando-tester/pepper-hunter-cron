@@ -24,6 +24,17 @@ comment gui di duoc sanitize het placeholder [X] (ETA mac dinh 3 ngay);
 lai khi token thay), loi tam thoi backoff toi da 30 phut; loi tung keo/tung
 diem nap duoc cach ly + dem vao STATUS, loi toan vong khong giet job.
 
+VA KHAN 11/11 (su co SS14#44876 - don bia kinh nghiem vao issue loi game):
+(1) CONG KIEM CHUNG TRUOC GUI: moi duong gui ra ngoai (don moi, don gui bo
+sung, nang nhanh lam_ngay, mo PR) deu fetch lai issue va bat buoc co TIN
+HIEU TIEN THAT (title/body/labels: $+so, USD/USDC/USDT, algora/opire, label
+bounty) - khong co thi chan, chuyen skipped_nopay + bao Telegram 1 lan;
+title aggregator rac bi bo qua ngay tu intake. (2) DON CHI DUA TREN HO SO
+THAT (REAL_PROFILE): prompt cam bia kinh nghiem, them LINT sau soan bat cau
+nhan kinh nghiem voi repo/project dich hoac ngoai ho so -> thay bang
+template an toan. (3) Telegram gian nhip >= 3.5s/tin + retry theo
+retry_after khi 429.
+
 MAY TRANG THAI (luan chot 18:01 10/11 - nhieu keo phai THANG/DUOC CHON truoc):
   mode=lam_ngay      : CHI khi issue NOI RO moi lam ngay (OPEN_SIGNALS:
                        "first pr", "no assignment needed", "just open a pr",
@@ -138,6 +149,75 @@ def trap_repo_reason(url):
                     "khong gui don" % (owner, repo, m))
     return None
 
+# --- Cong KIEM CHUNG TRUOC GUI (va khan 11/11, sau su co SS14#44876): don
+# xin viec / PR khong duoc roi he thong neu issue khong co TIN HIEU TIEN
+# THAT. Su co: luoi noi rong vet trung issue bao loi co che "bounty" TRONG
+# GAME (khong he co tien that), doer cu gui don bia kinh nghiem -> cong dong
+# cuoi, agent cha phai xoa comment tay. Day la chot chan CUOI o doer - moi
+# duong gui ra ngoai (make_apply, resend_apply, nhanh lam_ngay, submit_github)
+# deu phai qua cong nay.
+AGGREGATOR_TITLE_RE = re.compile(
+    r"bounty alert|new paid opportunit|new opportunities|opportunities today", re.I)
+MONEY_SIGNAL_RES = [
+    re.compile(r"\$\s?\d[\d,]*(?:\.\d+)?"),
+    re.compile(r"\d[\d,]*(?:\.\d+)?\s?(?:USDC|USDT|USD)\b", re.I),
+    re.compile(r"\b(?:algora|opire)\b", re.I),
+]
+
+
+def has_money_signal(title, body, labels):
+    """Tin hieu tien THAT trong title/body/labels: $ + so, so + USD/USDC/USDT,
+    nhac nen tang tra bounty (algora/opire), hoac label bounty chinh thuc."""
+    text = (title or "") + "\n" + (body or "")
+    if any(r.search(text) for r in MONEY_SIGNAL_RES):
+        return True
+    return any("bounty" in (l or "").lower() for l in (labels or []))
+
+
+def game_context_hints(labels):
+    """Nhan co dau hieu ngu canh ao/game (taxonomy kieu SS14: 'T: Bugfix',
+    'A: Cargo/Salvage'...). Chi de ghi ly do chan cho ro rang - dieu kien chan
+    chinh van la VANG tin hieu tien that."""
+    hints = []
+    for l in labels or []:
+        ll = (l or "").lower()
+        if "bugfix" in ll or ll.startswith("a:"):
+            hints.append(l)
+    return hints
+
+
+def presend_verify(entry, info):
+    """KIEM CHUNG TRUOC KHI GUI don/PR. info phai la fetch_issue_info MOI
+    NHAT (title + body + labels). Tra (ok, ly_do_chan)."""
+    if info is None:
+        return False, "khong doc duoc issue de kiem chung truoc khi gui"
+    title = info.get("title") or entry.get("title") or ""
+    body = info.get("body") or ""
+    labels = info.get("labels") or []
+    if AGGREGATOR_TITLE_RE.search(title or ""):
+        return False, "title dang aggregator rac - bo qua"
+    if has_money_signal(title, body, labels):
+        return True, ""
+    hints = game_context_hints(labels)
+    if hints:
+        return False, ("khong co tin hieu tien that + label ngu canh game/bug report (%s) "
+                       "- nghi 'bounty' o day la co che ao, khong phai keo tra tien"
+                       % ", ".join(hints))
+    return False, "khong co tin hieu tien that (chi khop tu khoa 'bounty')"
+
+
+def block_presend(entry, reason):
+    """Chuyen 1 keo bi cong kiem chung chan sang skipped_nopay + bao Telegram
+    1 lan. Chi dung khi CHUA co gi duoc gui ra ngoai cho keo nay."""
+    entry["status"] = "skipped_nopay"
+    entry["note"] = "kiem chung truoc gui chan: " + reason
+    log("CHAN GUI (kiem chung truoc gui) %s: %s" % (entry["url"], reason))
+    if not entry.get("nopay_notified"):
+        if telegram_send("[Pepper Hunter Doer] BO QUA KEO - KHONG CO TIN HIEU TIEN THAT\n%s\nLink: %s\nLy do: %s"
+                         % (entry["title"], entry["url"], reason)):
+            entry["nopay_notified"] = True
+
+
 IN_ACTIONS = os.environ.get("GITHUB_ACTIONS") == "true"
 DOER_ONCE = os.environ.get("DOER_ONCE") == "1"
 DOER_GIT = os.environ.get("DOER_GIT", "1" if IN_ACTIONS else "0") == "1"
@@ -225,6 +305,36 @@ def http_json(method, url, headers=None, obj=None, timeout=60):
         return st, {"raw": raw[:400]}
 
 
+# --- Nhip ban Telegram: toi thieu TG_MIN_GAP_SEC giua 2 tin lien tiep
+# (su co 11/11: ban 12 tin cung luc bi Telegram 429 rot mat 4 tin); gap 429
+# thi ton trong retry_after cua Telegram, cho roi gui lai toi da 2 lan.
+TG_MIN_GAP_SEC = float(os.environ.get("TG_MIN_GAP_SEC") or 3.5)
+_TG_LAST_SEND = [0.0]
+
+
+def _tg_wait_turn():
+    wait = _TG_LAST_SEND[0] + TG_MIN_GAP_SEC - time.monotonic()
+    if wait > 0:
+        time.sleep(wait)
+    _TG_LAST_SEND[0] = time.monotonic()
+
+
+def _tg_post_once(token, chat, text):
+    body = urllib.parse.urlencode({"chat_id": chat, "text": text[:3900],
+                                   "disable_web_page_preview": "true"}).encode()
+    st, raw = http_req("POST", "https://api.telegram.org/bot%s/sendMessage" % token,
+                       {"Content-Type": "application/x-www-form-urlencoded"}, body, 30)
+    ok, retry_after = False, None
+    try:
+        d = json.loads(raw)
+        ok = bool(d.get("ok"))
+        if not ok:
+            retry_after = (d.get("parameters") or {}).get("retry_after")
+    except Exception:
+        pass
+    return ok, st, raw, retry_after
+
+
 def telegram_send(text):
     token = (os.environ.get("TELEGRAM_BOT_TOKEN") or "").strip()
     chats = []
@@ -236,19 +346,23 @@ def telegram_send(text):
         return False
     ok_main = False
     for _i, chat in enumerate(chats):
-        body = urllib.parse.urlencode({"chat_id": chat, "text": text[:3900],
-                                       "disable_web_page_preview": "true"}).encode()
-        st, raw = http_req("POST", "https://api.telegram.org/bot%s/sendMessage" % token,
-                           {"Content-Type": "application/x-www-form-urlencoded"}, body, 30)
-        ok = False
-        try:
-            ok = bool(json.loads(raw).get("ok"))
-        except Exception:
-            pass
+        ok, st, raw = False, None, ""
+        for attempt in range(3):
+            _tg_wait_turn()
+            ok, st, raw, retry_after = _tg_post_once(token, chat, text)
+            if ok:
+                break
+            if st == 429 or retry_after:
+                delay = max(float(retry_after or 5), TG_MIN_GAP_SEC)
+                log("Telegram 429 (chat %d, lan gui %d) - cho %.0fs roi gui lai"
+                    % (_i + 1, attempt + 1, delay))
+                time.sleep(delay)
+            else:
+                break
         if _i == 0:
             ok_main = ok
         if not ok:
-            log("Telegram loi (HTTP %s): %s" % (st, raw[:160]))
+            log("Telegram loi (HTTP %s): %s" % (st, str(raw)[:160]))
     return ok_main
 
 
@@ -377,6 +491,9 @@ def fetch_bounty_candidates():
             title = (it.get("title") or "").strip()
             if len(title) < 6:
                 continue
+            if AGGREGATOR_TITLE_RE.search(title):
+                log("Intake2 BO QUA bai aggregator rac: %s" % title[:70])
+                continue
             repo = ""
             ru = it.get("repository_url", "")
             if "/repos/" in ru:
@@ -417,6 +534,9 @@ def register_deal(state, deal):
     dang ky moi, None neu da co. Gui Telegram su kien NHAN KEO ngay khi nhan."""
     url = deal.get("url")
     if not url or url in state:
+        return None
+    if AGGREGATOR_TITLE_RE.search(deal.get("title") or ""):
+        log("Khong dang ky bai aggregator rac: %s" % (deal.get("title") or "")[:70])
         return None
     trap = trap_repo_reason(url)
     if trap:
@@ -552,10 +672,75 @@ def deal_context(deal, info):
                body[:5000]))
 
 
+# --- HO SO THAT: nguon DUY NHAT duoc phep dua vao don xin viec / doan tu
+# gioi thieu trong san pham. Luan chot sau su co SS14: "khong duoc bia, dua
+# tren du lieu that" - don chi duoc nhan cac nang luc duoi day + lien he
+# CHUYEN DOI duoc sang keo nay + ke hoach cu the. CAM TUYET DOI: nhan kinh
+# nghiem voi repo/project/codebase dich, khach hang cu, hay bat ky thu gi
+# ngoai ho so nay. Co them LINT sau soan chan don bia truoc khi gui.
+REAL_PROFILE = ("PepperResearch - independent researcher/writer: cited research briefs and "
+                "crypto/web3 research articles (published on dev.to), Python automation and "
+                "Telegram bots (products listed on Gumroad and itch.io), data collection and "
+                "research tasks. GitHub: Luando-tester.")
+REAL_CLAIM_KEYS = ["research", "dev.to", "python", "telegram", "gumroad", "itch.io",
+                   "itch", "data collection", "automation", "writing", "writer",
+                   "brief", "github", "crypto", "web3"]
+GENERIC_TITLE_WORDS = {"bounty", "issue", "feature", "request", "improve", "support",
+                       "update", "adds", "adding", "using", "about", "there",
+                       "their", "which", "would", "could"}
+
+
+def target_tokens(deal):
+    """Tu khoa dinh danh issue dich (owner/repo tach thanh tung tu + tu dac
+    trung dai >= 5 ky tu trong title). Don nhan kinh nghiem cham vao cac tu
+    nay = bia kinh nghiem voi dich."""
+    toks = set()
+    p = parse_issue_url(deal.get("url") or "")
+    if p:
+        toks.add(p[0].lower())
+        toks.add(p[1].lower())
+        toks.add(p[1].lower().replace("-", " ").replace("_", " "))
+        for w in re.split(r"[-_/]", p[1].lower()):
+            if len(w) >= 4:
+                toks.add(w)
+    for w in re.findall(r"[a-z0-9]{5,}", (deal.get("title") or "").lower()):
+        if w not in GENERIC_TITLE_WORDS:
+            toks.add(w)
+    return toks
+
+
+CLAIM_RE = re.compile(r"[^.\n]*\b(experience|expertise|expert in|worked on|speciali[sz]\w*|proficient|familiar with)\b[^.\n]*", re.I)
+
+
+def lint_application(text, deal):
+    """LINT sau soan / truoc gui: bat cau nhan kinh nghiem BIA. 1 cau bi bat khi:
+    (1) cau nhan kinh nghiem cham ten owner/repo/title cua issue dich; hoac
+    (2) nhan kinh nghiem voi 'codebase' (ho so that khong co muc nay); hoac
+    (3) cau nhan kinh nghiem khong chua bat ky nang luc nao cua ho so that.
+    Tra list cac cau bi bat (rong = sach, duoc gui)."""
+    problems = []
+    targets = target_tokens(deal)
+    for m in CLAIM_RE.finditer(text or ""):
+        seg = m.group(0).strip(" -\t")
+        if len(seg) < 12:
+            continue
+        low = seg.lower()
+        if any(t and t in low for t in targets):
+            problems.append(seg)
+        elif "codebase" in low:
+            problems.append(seg)
+        elif not any(k in low for k in REAL_CLAIM_KEYS):
+            problems.append(seg)
+    return problems
+
+
 def prompt_apply(deal, info):
     p = ("Ban la PepperResearch, freelancer dang XIN NHAN 1 keo GitHub bounty. "
          "Viet 1 comment tieng Anh ngan gon, chuyen nghiep, de dang len issue xin duoc giao viec:\n"
-         "- Gioi thieu 1 cau (ky nang lien quan dung loai keo nay).\n"
+         "- Gioi thieu 1 cau: CHI duoc dua tren HO SO THAT duoi day - chi lien he nang luc "
+         "CHUYEN DOI duoc sang loai keo nay. TUYET DOI KHONG nhan kinh nghiem voi "
+         "repo/project/codebase dich, khach hang cu, hay bat ky thu gi ngoai ho so that.\n"
+         "HO SO THAT (nguon duy nhat duoc phep dung): " + REAL_PROFILE + "\n"
          "- Ke hoach lam 3-5 buoc cu the theo noi dung issue.\n"
          "- ETA uoc luong: ghi SO NGAY cu the (mac dinh 3 ngay neu chua chac) - "
          "TUYET DOI khong de placeholder dang [X].\n"
@@ -612,10 +797,14 @@ def prompt_product(deal, info, typ):
                 "duoi day: bai viet/tai lieu HOAN CHINH dung yeu cau issue, dung ngon ngu cua "
                 "issue, cau truc ro rang, san sang nop. Neu la research: chi dung thong tin "
                 "trong issue/pack va kien thuc chac chan; so lieu/link chua chac thi ghi ro "
-                "'can kiem chung' - TUYET DOI khong bia so lieu hay link.\n\n" + ctx)
+                "'can kiem chung' - TUYET DOI khong bia so lieu hay link. Neu co tu gioi thieu, "
+                "CHI duoc dung ho so that nay, khong nhan kinh nghiem ngoai ho so: "
+                + REAL_PROFILE + "\n\n" + ctx)
     if typ == "khac":
         return ("Hay LAM THAT san pham cho keo duoi day (tai lieu/ke hoach/ban thao dung "
-                "yeu cau issue, cau truc ro, san sang nop). Khong bia so lieu.\n\n" + ctx)
+                "yeu cau issue, cau truc ro, san sang nop). Khong bia so lieu. Neu co tu gioi "
+                "thieu, CHI duoc dung ho so that nay, khong nhan kinh nghiem ngoai ho so: "
+                + REAL_PROFILE + "\n\n" + ctx)
     return ""
 
 
@@ -689,6 +878,13 @@ def save_state(state):
 def make_apply(entry, pool, pool_state, info):
     """Sinh APPLY.md (don xin nhan viec). Co PAT thi gui comment that ngay."""
     notify_started(entry)
+    # CONG KIEM CHUNG TRUOC GUI: fetch lai info MOI NHAT - khong co tin hieu
+    # tien that thi CHAN ngay, khong soan khong gui (bai hoc SS14#44876).
+    fresh = fetch_issue_info(entry["url"])
+    ok_v, reason_v = presend_verify(entry, fresh if fresh is not None else info)
+    if not ok_v:
+        block_presend(entry, reason_v)
+        return entry
     deal = {"title": entry["title"], "url": entry["url"], "budget_usd": entry.get("budget_usd"),
             "pack": entry.get("pack", "")}
     if pool:
@@ -698,6 +894,14 @@ def make_apply(entry, pool, pool_state, info):
     else:
         text, mode = template_apply(deal), "template (chua co Gemini key)"
     comment_body = sanitize_comment_body(ensure_ask_money(text.strip(), deal))
+    # LINT CHONG BIA: don nhan kinh nghiem khong co trong ho so that -> VUT,
+    # thay bang template an toan (chi ho so that + ke hoach chung).
+    bia = lint_application(comment_body, deal)
+    if bia:
+        log("LINT chan don bia cho %s: %s" % (entry["url"], " | ".join(bia)[:200]))
+        comment_body = sanitize_comment_body(template_apply(deal))
+        mode = mode + " | don Gemini bi LINT chan (bia kinh nghiem) -> template an toan"
+        entry["apply_lint_blocked"] = bia[:3]
     doc = (NOTE_DRAFT
            + "# Don xin nhan viec (APPLY) - %s\n\n- Keo: %s\n- Link: %s\n- Mode: cho_duoc_chon\n"
              "- Nguon soan: %s\n- Trang thai gui: %s\n\n## Noi dung comment se gui\n\n%s\n"
@@ -864,6 +1068,15 @@ def resend_apply(entry):
     if "## Noi dung comment se gui" not in doc:
         return False
     comment_body = sanitize_comment_body(doc.split("## Noi dung comment se gui", 1)[1].strip())
+    # LINT CHONG BIA cho ca don cu soan tu cac lan chay truoc: co cau nhan
+    # kinh nghiem khong co trong ho so that -> thay bang template an toan.
+    deal_r = {"title": entry["title"], "url": entry["url"], "budget_usd": entry.get("budget_usd")}
+    bia = lint_application(comment_body, deal_r)
+    if bia:
+        log("LINT chan don gui bo sung (bia kinh nghiem) cho %s: %s - thay bang template an toan"
+            % (entry["url"], " | ".join(bia)[:200]))
+        comment_body = sanitize_comment_body(template_apply(deal_r))
+        entry["apply_lint_blocked"] = bia[:3]
     p = parse_issue_url(entry["url"])
     if not p or not comment_body:
         return False
@@ -966,6 +1179,12 @@ def maybe_upgrade_mode(entry, pool, pool_state):
             entry["mode_reason"] = reason
         return False
     if o:
+        # Nang nhanh = sap lam san pham + mo PR: phai qua kiem chung truoc gui.
+        ok_v, reason_v = presend_verify(entry, info)
+        if not ok_v:
+            entry["mode_reason"] = "khong nang lam_ngay - kiem chung truoc gui chan: " + reason_v
+            log("Khong nang lam_ngay %s: %s" % (entry["url"], reason_v))
+            return False
         entry["mode"] = "lam_ngay"
         entry["mode_reason"] = ("phan loai lai: issue noi ro moi lam ngay '%s' (%s) "
                                 "-> lam san pham + mo PR nhap ngay, khong cho assign" % (o, src))
@@ -1038,6 +1257,14 @@ def submit_github(entry):
     Tra True neu da mo duoc PR. Chi chay khi co GITHUB_PAT."""
     p = parse_issue_url(entry["url"])
     if not p:
+        return False
+    # CHOT CHAN CUOI cho PR: kiem chung lai tin hieu tien that ngay truoc khi
+    # fork/mo PR - chan ca cac keo da dang ky tu truoc khi co cong nay.
+    ok_v, reason_v = presend_verify(entry, fetch_issue_info(entry["url"]))
+    if not ok_v:
+        if entry.get("presend_blocked_reason") != reason_v:
+            entry["presend_blocked_reason"] = reason_v
+            log("submit_github BI CHAN boi kiem chung truoc gui (%s): %s" % (entry["url"], reason_v))
         return False
     owner, repo, number = p
     st, me = gh_api("GET", "/user")
@@ -1147,6 +1374,7 @@ def write_status(state, latest_ts, registered_this_cycle=0, cycle_errors=0):
              ("lost", "Thua / da co nguoi nhan / issue dong"),
              ("het_han", "Het han cho"),
              ("skipped_trap", "Bo qua - repo bay bot (khong dang ky, khong gui don)"),
+             ("skipped_nopay", "Bo qua - khong co tin hieu tien that (kiem chung truoc gui chan)"),
              ("new", "Moi dang ky")]
     for status, label in order:
         rows = [e for e in state.values() if e.get("status") == status]
@@ -1169,6 +1397,8 @@ def write_status(state, latest_ts, registered_this_cycle=0, cycle_errors=0):
                     extra = " - don: da soan, CHO PAT de gui"
             elif status == "skipped_trap":
                 extra = " - ly do: " + (e.get("note") or "repo bay bot")
+            elif status == "skipped_nopay":
+                extra = " - ly do: " + (e.get("note") or "khong co tin hieu tien that")
             if e.get("mode_reason") and status in ("new", "applied", "assigned", "working"):
                 extra += " | mode_reason: " + e["mode_reason"]
             lines.append("- [%s](%s) - %s/%s - %s%s"
@@ -1300,7 +1530,7 @@ def process_cycle(state, pool, pool_state):
     backfilled = 0
     for url in pre_existing:
         e = state.get(url)
-        if not e or e.get("status") in ("lost", "het_han", "pipeline-test", "skipped_trap"):
+        if not e or e.get("status") in ("lost", "het_han", "pipeline-test", "skipped_trap", "skipped_nopay"):
             continue
         if not e.get("notified_registered"):
             e["notified_registered"] = True
@@ -1328,29 +1558,42 @@ def process_cycle(state, pool, pool_state):
             if status == "new" and entry.get("mode") == "cho_duoc_chon":
                 make_apply(entry, pool, pool_state, fetch_issue_info(url))
             elif status == "new" and entry.get("mode") == "lam_ngay":
-                make_product(entry, pool, pool_state, fetch_issue_info(url))
-                # Lam xong la mo PR nhap NGAY trong cung vong (khong cho assign)
-                if entry.get("status") == "working" and (os.environ.get("GITHUB_PAT") or "").strip():
-                    submit_github(entry)
+                # Nhanh lam_ngay se mo PR ra ngoai -> cung phai qua kiem chung
+                # truoc gui (chan keo ao/game truoc khi ton cong lam san pham).
+                ok_v, reason_v = presend_verify(entry, fetch_issue_info(url))
+                if not ok_v:
+                    block_presend(entry, reason_v)
+                else:
+                    make_product(entry, pool, pool_state, fetch_issue_info(url))
+                    # Lam xong la mo PR nhap NGAY trong cung vong (khong cho assign)
+                    if entry.get("status") == "working" and (os.environ.get("GITHUB_PAT") or "").strip():
+                        submit_github(entry)
             elif status == "applied":
                 if not entry.get("apply_sent"):
                     ensure_apply_file_money(entry)
-                    resend_apply(entry)
-                verdict, verdict_reason = check_assignment(entry)
-                if verdict == "assigned":
-                    entry["status"] = "assigned"
-                    entry["assigned_at"] = now_iso()
-                    telegram_send("[Pepper Hunter Doer] DUOC CHON!\n%s\nLink: %s\nBat dau lam san pham ngay."
-                                  % (entry["title"], url))
-                    make_product(entry, pool, pool_state, fetch_issue_info(url))
-                elif verdict in ("lost", "het_han"):
-                    entry["status"] = verdict
-                    entry["note"] = "don cho ket thuc: " + verdict
-                    notify_application_ended(entry, verdict, verdict_reason)
-                else:
-                    # Chua co phan hoi: phan loai lai theo tin hieu moi nhat -
-                    # issue vua moi lam ngay thi nang nhanh lam san pham ngay.
-                    maybe_upgrade_mode(entry, pool, pool_state)
+                    # Don cu chua gui duoc cung phai qua kiem chung truoc khi
+                    # gui bo sung (keo dang ky tu truoc khi co cong nay).
+                    ok_v, reason_v = presend_verify(entry, fetch_issue_info(url))
+                    if not ok_v:
+                        block_presend(entry, reason_v)
+                    else:
+                        resend_apply(entry)
+                if entry.get("status") == "applied":
+                    verdict, verdict_reason = check_assignment(entry)
+                    if verdict == "assigned":
+                        entry["status"] = "assigned"
+                        entry["assigned_at"] = now_iso()
+                        telegram_send("[Pepper Hunter Doer] DUOC CHON!\n%s\nLink: %s\nBat dau lam san pham ngay."
+                                      % (entry["title"], url))
+                        make_product(entry, pool, pool_state, fetch_issue_info(url))
+                    elif verdict in ("lost", "het_han"):
+                        entry["status"] = verdict
+                        entry["note"] = "don cho ket thuc: " + verdict
+                        notify_application_ended(entry, verdict, verdict_reason)
+                    else:
+                        # Chua co phan hoi: phan loai lai theo tin hieu moi nhat -
+                        # issue vua moi lam ngay thi nang nhanh lam san pham ngay.
+                        maybe_upgrade_mode(entry, pool, pool_state)
             elif status == "assigned":
                 make_product(entry, pool, pool_state, fetch_issue_info(url))
             elif status == "working":
