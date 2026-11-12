@@ -321,14 +321,16 @@ def syn_classify(intent):
             return "clean", ok
     return "pending", "khong nhan dien duoc loai viec"
 
-def syn_price_real(budget_cents, intent):
-    """GIA THAT theo brief v69 (Luan chot 12/11/2026 - thay luat 3 muc 07/11
-    va bo vong lap ha gia): award tren keo Synmerco dang uu tien builder
-    chua tung duoc award, roi Synmerco Score cao thang; gia chi quyet khi
-    diem bang nhau -> bid re khong mua them cua thang. Gia that = mac dinh
-    85% ngan sach (gop truoc phi 3.25%, rong ~82.24%). Tra (price, pct)."""
-    price = budget_cents * 85 // 100
-    return price, 85
+def syn_price_competitive(budget_cents, intent):
+    """GIA CANH TRANH (Luan chot 07:13 12/11/2026 - thay luat gia that v69
+    chot 05:31 cung ngay): sau chuoi bid thua lien tiep (ke ca bid 3860 o
+    90% ngan sach), Luan ha mat bang gia de tang cua thang. Mac dinh 60%
+    ngan sach (gop truoc phi 3.25%, rong ~58.05%); dai tu quyet 50-70%
+    chi ap dung o luot Muse co can cu cu the - duong Actions tu dong
+    nay luon dung mac dinh 60%. Vong lap ha gia van BO: bid da nop giu
+    nguyen toi khi intent chot. Tra (price, pct)."""
+    price = budget_cents * 60 // 100
+    return price, 60
 
 def syn_lowest_rival(detail, my_did=MY_DID):
     tops = detail.get("topBids") or detail.get("top_bids") or []
@@ -445,8 +447,8 @@ def watch_synmerco(st, alerts):
             continue
         # SACH -> bid ngay theo luat gia
         msg = syn_bid_message(full)
-        price, level = syn_price_real(budget, full)
-        basis = "bid gia that %d%% ngan sach theo v69 (Luan chot 12/11) - khong ha gia duoi doi thu" % level
+        price, level = syn_price_competitive(budget, full)
+        basis = "bid %d%% ngan sach theo luat gia canh tranh (Luan chot 07:13 12/11) - mac dinh 60%%, dai tu quyet 50-70%%; khong sua gia bid da nop" % level
         if price < 100:
             if budget > 100:
                 price = 100
@@ -497,7 +499,7 @@ def watch_synmerco(st, alerts):
         budget = p.get("budget_cents")
         if not budget:
             continue
-        price, level = syn_price_real(int(budget), full)
+        price, level = syn_price_competitive(int(budget), full)
         if price < 100 or price >= int(budget):
             continue
         msg = syn_bid_message(full)
