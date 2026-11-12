@@ -82,6 +82,26 @@ nhan tin loai "choduyet" (bao keo tu_xu moi), "assigned" (DUOC GIAO KEO),
 bat dau xu ly, thua, het han, da nop, don dang ngam...) bi gat qua
 notify(), chi ghi log. STATUS.md van commit nhu cu (khong phai thong bao).
 
+EXECUTOR (mo hinh moi - lenh Luan 07:56 12/11): keo DA DUOC GIAO
+(status "assigned") thi doer TU THUC THI bang Gemini nhu Muse: trich
+TASK nguyen van (title + body issue + comment giao viec) -> lam DUNG
+pham vi task trong sandbox (clone repo dich / viet tai lieu) -> tu chay
+kiem chung chuan cua repo dich -> sua den khi dat hoac cham tran
+(60 luot Gemini, ~25 phut/task) -> nop bai qua DUONG RIENG
+submit_executor_result (PR cho keo code, comment chua san pham cho keo
+viet/khac) -> "submitted" de vong theo doi merge/tra tien cu tiep quan
+(check_submitted -> cho_tra -> da_tra -> TIEN VE). Duong nop nay TACH
+BACH voi outbound: outbound van {"outbound": false} va outbound_guard
+van chan cung make_apply / resend_apply / submit_github nhu cu - no chi
+mo khi entry dung "assigned" VA da co san pham do chinh executor lam ra.
+Lam khong xong / cham tran -> "exec_kẹt" + bao incident 1 lan (pool
+Gemini can/hong thi noi ro het key - khong bao gio chet im lang); co che
+nop khong ro hoac that bai -> "cho_nop_tay" + bao incident. Muse (chat)
+chi con nhan cac muc can chinh Luan (KYC/ky vi/tao tai khoan/dan
+key/li ket tai khoan). CAM TUYET DOI nhu cu: khong dang tuyen/ung
+tuyen, khong bia claim hay task, keo ban bi cong sach loai tu intake,
+pham vi lam = DUNG yeu cau ghi trong keo da nhan - khong them gi.
+
 MAY TRANG THAI (luan chot 18:01 10/11 - nhieu keo phai THANG/DUOC CHON truoc):
   mode=lam_ngay      : CHI khi issue NOI RO moi lam ngay (OPEN_SIGNALS:
                        "first pr", "no assignment needed", "just open a pr",
@@ -118,7 +138,7 @@ Bien moi truong:
   APPLIED_EXPIRE_DAYS=30  don cho qua so ngay nay -> het_han
 Chi dung thu vien chuan. Loi tung nguon chi log, khong giet vong lap.
 """
-import hashlib, json, os, re, subprocess, sys, time, urllib.request, urllib.error, urllib.parse
+import hashlib, json, os, re, shutil, subprocess, sys, tempfile, time, urllib.request, urllib.error, urllib.parse
 from datetime import datetime, timezone, timedelta
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -542,8 +562,11 @@ def telegram_send(text):
 # thua nguoi khac, het han cho, da nop bai, don dang ngam, hoi phuc
 # kenh...) bi GAT - chi ghi log, khong gui. Outbound ON thi moi tin gui
 # nhu cu. STATUS.md khong qua cong nay (chi la file commit).
+# Bo sung "exec_done" (lenh Luan 07:56 12/11 - mo hinh EXECUTOR): keo da
+# duoc giao ma executor tu lam XONG + da nop bai -> bao 1 tin loai
+# "exec_done"; executor ket / phai nop tay thi bao loai "incident".
 def notify(text, kind="routine"):
-    if not outbound_enabled() and kind not in ("choduyet", "incident", "assigned", "tienve"):
+    if not outbound_enabled() and kind not in ("choduyet", "incident", "assigned", "tienve", "exec_done"):
         log("Telegram BI GAT (hunt-only, tin '%s'): %s"
             % (kind, (text or "").split("\n")[0][:140]))
         return False
@@ -784,7 +807,7 @@ def register_deal(state, deal):
             # Keo vua phat hien da duoc giao san cho minh (hunt-only): bao
             # DUOC GIAO KEO ngay nhu moi phat hien giao viec khac - doer
             # khong tu lam/tu nop, cho xu ly co giam sat qua chat.
-            if notify("[Pepper Hunter Doer] DUOC GIAO KEO (hunt-only - khong tu lam, khong tu nop)\n%s\nLink: %s\nKeo da duoc giao san cho Luando-tester ngay khi phat hien. Doer la cong cu tu dong nen chi ghi nhan + bao ngay: khong tu lam san pham, khong tu mo PR. Viec lam keo se duoc xu ly co giam sat qua chat."
+            if notify("[Pepper Hunter Doer] DUOC GIAO KEO\n%s\nLink: %s\nKeo da duoc giao san cho Luando-tester ngay khi phat hien. Executor se TU LAM dung pham vi task ghi trong keo (bang Gemini) va nop bai o vong ke tiep; chi bao su co khi bi ket hoac can chinh Luan xu ly."
                       % (entry["title"], url), kind="assigned"):
                 entry["notified_registered"] = True
         elif notify("[Pepper Hunter Doer] NHAN KEO MOI VAO XU LY: %s | mode: %s | ngan sach: %s\nLink: %s"
@@ -1778,7 +1801,18 @@ def submit_github(entry):
 
 
 def check_submitted(entry):
-    """submitted -> cho_tra khi PR merged hoac chu xac nhan xong."""
+    """submitted -> cho_tra khi PR merged hoac chu xac nhan xong.
+    Rieng bai nop bang COMMENT (executor, keo viet/khac): khong co PR de
+    merge - dau hieu nghiem thu la issue duoc DONG sau khi da giao san
+    pham -> cho_tra (tien van chi ghi da_tra khi co bang chung that)."""
+    if entry.get("submitted_via") == "comment":
+        info = fetch_issue_info(entry["url"])
+        if info and info.get("state") == "closed":
+            entry["status"] = "cho_tra"
+            entry["merged_at"] = now_iso()
+            log("San pham da giao bang comment + issue da dong -> CHO TRA: %s" % entry["title"][:60])
+            return True
+        return False
     p = parse_issue_url(entry["url"])
     if not p or not entry.get("pr_number"):
         return False
@@ -1789,6 +1823,870 @@ def check_submitted(entry):
         log("PR merged -> CHO TRA: %s" % entry["title"][:60])
         return True
     return False
+
+
+# ================================================================ EXECUTOR
+# --- EXECUTOR (mo hinh van hanh moi - lenh Luan 07:56 12/11): keo DA DUOC
+# GIAO thi doer TU THUC THI bang Gemini nhu Muse tu lam: trich TASK
+# nguyen van -> lam dung pham vi trong sandbox -> tu kiem chung -> nop
+# bai -> submitted (vong theo doi merge/tra tien cu tiep quan). Muse
+# (chat) chi con nhan cac muc can chinh Luan (KYC/ky vi/tao tai khoan/
+# dan key/lien ket tai khoan).
+#
+# TACH BACH TUYET DOI voi outbound: control.json van {"outbound": false},
+# outbound_guard van chan cung make_apply / resend_apply / submit_github
+# nhu cu. Duong nop bai cua executor la ham RIENG
+# submit_executor_result(), co cong rieng: chi mo khi entry dung trang
+# thai "assigned" VA da co san pham do chinh executor lam ra
+# (exec_done_at + exec_result done/done_unverified + RESULT.md). Day
+# KHONG phai la noi long outbound_guard.
+#
+# CAM TUYET DOI (khong doi): khong dang tuyen/ung tuyen, khong bia claim
+# hay task, keo ban bi cong sach loai tu intake, pham vi lam = DUNG yeu
+# cau ghi trong keo da nhan - khong them gi ngoai TASK nguyen van.
+EXEC_MAX_GEMINI_CALLS = int(os.environ.get("DOER_EXEC_MAX_CALLS") or 60)
+EXEC_MAX_WALL_SEC = int(os.environ.get("DOER_EXEC_MAX_SEC") or 1500)
+EXEC_MAX_FIX_ROUNDS = 6
+EXEC_MAX_FILES = 6
+
+HANDOVER_PHRASES = [
+    "please implement", "please fix", "please add", "please write",
+    "please create", "please build", "please proceed", "go ahead and",
+    "feel free to start", "your task is", "your task:", "assigned to you",
+    "over to you", "handing this to you", "can you implement",
+    "can you fix", "can you add", "can you write", "can you create",
+    "kindly implement", "kindly fix",
+]
+
+
+class ExecCapError(Exception):
+    """Vuot tran tai nguyen executor (so luot Gemini / thoi gian tuong) -
+    dung ngay, giu san pham do dang, danh dau exec_kẹt."""
+
+
+class ExecFail(Exception):
+    """Executor khong hoan thanh duoc task (khong clone duoc repo, Gemini
+    khong tra san pham, kiem chung fail den cung...). keys=True khi nguyen
+    nhan la pool Gemini can/hong - bao incident phai noi ro het key."""
+
+    def __init__(self, reason, keys=False):
+        super().__init__(reason)
+        self.keys = keys
+
+
+class ExecBudget:
+    """Dem luot Gemini + gio tuong cho 1 lan chay executor. Vuot tran
+    (EXEC_MAX_GEMINI_CALLS luot / EXEC_MAX_WALL_SEC giay) -> ExecCapError.
+    Doc tran tu bien module tai thoi diem goi (de test/dieu chinh duoc)."""
+
+    def __init__(self):
+        self.calls = 0
+        self.start = time.monotonic()
+
+    def call(self, pool, pool_state, prompt):
+        if self.calls >= EXEC_MAX_GEMINI_CALLS:
+            raise ExecCapError("vuot tran %d luot Gemini/task" % EXEC_MAX_GEMINI_CALLS)
+        if time.monotonic() - self.start > EXEC_MAX_WALL_SEC:
+            raise ExecCapError("vuot tran %d giay/task" % EXEC_MAX_WALL_SEC)
+        self.calls += 1
+        return gemini_generate_pool(pool, pool_state, prompt)
+
+    def check_time(self):
+        if time.monotonic() - self.start > EXEC_MAX_WALL_SEC:
+            raise ExecCapError("vuot tran %d giay/task" % EXEC_MAX_WALL_SEC)
+
+
+def run_shell(args, cwd=None, timeout=180):
+    """Chay lenh ngoai (git clone / lenh kiem chung cua repo dich) trong
+    sandbox cua executor. Tra (rc, stdout_rut_gon, stderr_rut_gon);
+    rc=None khi timeout hoac khong khoi chay duoc."""
+    try:
+        r = subprocess.run(args, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+        return r.returncode, (r.stdout or "")[-4000:], (r.stderr or "")[-2000:]
+    except subprocess.TimeoutExpired:
+        return None, "", "timeout %ds" % timeout
+    except Exception as e:
+        return None, "", str(e)[:300]
+
+
+def find_handover_comment(entry):
+    """TRIGGER 2 cua executor: tren keo dang theo doi (vd tu_xu), comment
+    cua maintainer (OWNER/MEMBER/COLLABORATOR) nhac dung @Luando-tester +
+    chua cum TRAO VIEC cu the ('please implement...', 'your task is...')
+    thi coi nhu da giao task. Tra comment do (dict) hoac None. Bao thu:
+    chi nhac ten ma khong co cum trao viec thi KHONG tinh."""
+    try:
+        comments = fetch_issue_comments(entry["url"])
+    except Exception:
+        return None
+    for c in comments:
+        if c.get("association") not in ("OWNER", "MEMBER", "COLLABORATOR"):
+            continue
+        body = c.get("body") or ""
+        low = body.lower()
+        if OUR_USERNAME.lower() not in low:
+            continue
+        if any(p in low for p in HANDOVER_PHRASES):
+            return c
+    return None
+
+
+def find_assignment_comment(entry):
+    """Comment giao viec de trich NGUYEN VAN vao TASK.md: uu tien comment
+    trao viec (find_handover_comment); sau la comment MOI NHAT chua tu xac
+    nhan giao viec (ASSIGN_CONFIRM_WORDS) co nhac ten minh. Khong co ->
+    None (viec giao qua assignee/label - TASK chi ghi nhan trang thai)."""
+    c = find_handover_comment(entry)
+    if c:
+        return c
+    try:
+        comments = fetch_issue_comments(entry["url"])
+    except Exception:
+        return None
+    found = None
+    for c in comments:
+        low = (c.get("body") or "").lower()
+        if OUR_USERNAME.lower() in low and any(w in low for w in ASSIGN_CONFIRM_WORDS):
+            found = c
+    return found
+
+
+def fetch_issue_full(url):
+    """Lay issue DAY DU cho executor (body toi da 20000 ky tu - khong cat
+    6000 nhu fetch_issue_info vi TASK phai nguyen van). Tra dict cung dang
+    fetch_issue_info hoac None."""
+    p = parse_issue_url(url)
+    if not p:
+        return None
+    st, d = gh_api("GET", "/repos/%s/%s/issues/%d" % p)
+    if st != 200 or not isinstance(d, dict):
+        return None
+    return {
+        "state": d.get("state"),
+        "assignees": [a.get("login") for a in (d.get("assignees") or [])],
+        "labels": [l.get("name", "") for l in (d.get("labels") or [])],
+        "comments": d.get("comments", 0),
+        "body": (d.get("body") or "")[:20000],
+        "title": d.get("title") or "",
+    }
+
+
+def build_task_spec(entry, info, assign_comment):
+    """TASK.md = PHAM VI CHOT cua executor: title + body issue NGUYEN VAN
+    + comment giao viec NGUYEN VAN. Khong dien giai, khong them yeu cau.
+    Tra (noi_dung_TASK_md, ambiguous): ambiguous=True khi than issue qua
+    ngan hoac khong thay dau hieu tieu chi nghiem thu - executor van lam
+    theo doc hieu den tu va ghi gia dinh vao RESULT.md."""
+    title = (info or {}).get("title") or entry.get("title") or ""
+    body = (info or {}).get("body") or entry.get("pack") or ""
+    low = (title + "\n" + body).lower()
+    has_criteria = any(k in low for k in (
+        "acceptance criteria", "acceptance", "done when", "deliverable",
+        "requirements", "expected", "verify", "test"))
+    ambiguous = len((body or "").strip()) < 120 or not has_criteria
+    lines = [
+        "# TASK - pham vi chot (chi lam dung yeu cau duoi day, khong them)",
+        "",
+        "- Keo: %s" % title,
+        "- Link: %s" % entry["url"],
+        "- Loai: %s" % entry.get("type", "?"),
+        "- Ngan sach: %s" % (("$" + str(entry["budget_usd"])) if entry.get("budget_usd") else "chua ghi"),
+        "- Phat hien giao viec luc: %s" % now_iso(),
+        "",
+        "## Tieu de issue (nguyen van)",
+        "",
+        title,
+        "",
+        "## Than issue (nguyen van - day la dac ta task)",
+        "",
+        (body or "").strip() or "(issue khong co than)",
+        "",
+    ]
+    if assign_comment:
+        lines += [
+            "## Comment giao viec cua maintainer (nguyen van)",
+            "",
+            "- Tac gia: @%s (%s)" % (assign_comment.get("user", "?"),
+                                     assign_comment.get("association", "?")),
+            "- Link: %s" % assign_comment.get("html_url", ""),
+            "",
+            (assign_comment.get("body") or "").strip(),
+            "",
+        ]
+    else:
+        lines += ["## Comment giao viec", "",
+                  "(Viec giao qua assignee/label tren GitHub - khong co comment giao viec rieng.)",
+                  ""]
+    lines += [
+        "## Nguyen tac pham vi",
+        "",
+        "- CHI lam dung yeu cau ghi o tren. Khong tu them tinh nang, khong sua phan khong lien quan.",
+        "- Thieu tieu chi nghiem thu ro rang -> lam theo doc hieu den tu, ghi gia dinh vao RESULT.md.",
+        "",
+    ]
+    return "\n".join(lines), ambiguous
+
+
+# ---------------------------------------------------------------- Prompt executor
+def prompt_exec_plan(entry, task_text, repo_listing):
+    return ("Ban la ky su thuc thi (executor) cua PepperResearch - cong cu tu dong thuoc du an "
+            "ca nhan cua chu so huu (GitHub: Luando-tester). Duoi day la TASK NGUYEN VAN cua 1 "
+            "keo DA DUOC GIAO. Pham vi CHOT: chi lam dung yeu cau trong TASK, tuyet doi khong "
+            "them yeu cau/tinh nang nao khac.\n"
+            "BUOC 1 - LAP KE HOACH THUC THI ngan gon:\n"
+            "1) Viec can lam (dien giai den tu TASK, khong them).\n"
+            "2) Danh sach file du kien tao/sua - moi file 1 dong dang: FILE: duong/dan/file.ext - muc dich ngan.\n"
+            "3) Cach tu kiem chung du kien.\n"
+            "Chi tra ve ke hoach, khong viet code o buoc nay.\n\n"
+            "=== TASK ===\n" + task_text[:9000]
+            + "\n\n=== CAU TRUC REPO (neu co) ===\n" + (repo_listing or "(khong ap dung)"))
+
+
+def prompt_exec_produce_code(entry, task_text, plan_text, existing):
+    parts = ["Ban la ky su thuc thi cua PepperResearch (cong cu tu dong, du an ca nhan - "
+             "GitHub: Luando-tester). BUOC 2 - VIET FILE SAN PHAM: hay cai dat dung TASK duoi "
+             "day - pham vi chot, khong them tinh nang, khong sua phan khong lien quan.\n"
+             "Dinh dang bat buoc cho MOI file tao/sua:\n"
+             "=== FILE: duong/dan/file.ext ===\n<toan bo noi dung file SAU KHI sua>\n=== END FILE ===\n"
+             "Toi da %d file quan trong nhat. Chi tra ve cac khoi file, khong giai thich ngoai khoi."
+             % EXEC_MAX_FILES,
+             "=== TASK ===\n" + task_text[:9000],
+             "=== KE HOACH ===\n" + (plan_text or "")[:3000]]
+    for rel, content in (existing or {}).items():
+        parts.append("=== FILE HIEN TAI: %s ===\n%s" % (rel, content))
+    return "\n\n".join(parts)
+
+
+def prompt_exec_produce_doc(entry, task_text, plan_text):
+    return ("Ban la nguoi lam noi dung/tai lieu chuyen nghiep cho PepperResearch (cong cu tu "
+            "dong, du an ca nhan - GitHub: Luando-tester). BUOC 2 - VIET TAI LIEU SAN PHAM: "
+            "hay LAM THAT san pham cho TASK duoi day: tai lieu/bai viet HOAN CHINH dung yeu "
+            "cau, dung ngon ngu cua issue, cau truc ro, san sang nop. Pham vi chot: chi lam "
+            "dung yeu cau trong TASK. Research chi dung thong tin trong TASK va kien thuc "
+            "chac chan; so lieu/link chua chac ghi ro 'can kiem chung' - TUYET DOI khong bia "
+            "so lieu/link. Neu co doan tu gioi thieu, CHI dung ho so that nay: " + REAL_PROFILE
+            + "\nChi tra ve noi dung tai lieu (Markdown), khong giai thich them.\n\n"
+            "=== TASK ===\n" + task_text[:9000]
+            + "\n\n=== KE HOACH ===\n" + (plan_text or "")[:2000])
+
+
+def prompt_exec_fix(entry, task_text, failing_output, current):
+    parts = ["Ban la ky su thuc thi cua PepperResearch. BUOC 3 - SUA LOI KIEM CHUNG: cac lenh "
+             "kiem chung cua repo dich vua FAIL voi output duoi day. Hay sua dung cac file "
+             "lien quan (pham vi van la TASK - khong them tinh nang).\n"
+             "Dinh dang bat buoc cho MOI file sua:\n"
+             "=== FILE: duong/dan/file.ext ===\n<toan bo noi dung file SAU KHI sua>\n=== END FILE ===\n"
+             "Chi tra ve cac khoi file can sua, khong giai thich ngoai khoi.",
+             "=== TASK ===\n" + task_text[:6000],
+             "=== OUTPUT KIEM CHUNG FAIL ===\n" + (failing_output or "")[:5000]]
+    for rel, content in (current or {}).items():
+        parts.append("=== FILE HIEN TAI: %s ===\n%s" % (rel, content))
+    return "\n\n".join(parts)
+
+
+def _plan_target_files(plan_text):
+    """Trich cac dong 'FILE: duong/dan' trong ke hoach Gemini -> danh sach
+    file du kien sua (de doc noi dung hien tai dua vao prompt san xuat)."""
+    out = []
+    for m in re.finditer(r"^\s*-?\s*FILE:\s*([^\s]+)", plan_text or "", re.M):
+        path = m.group(1).strip().strip(",;")
+        if path.startswith("/") or ".." in path.split("/"):
+            continue
+        if path not in out:
+            out.append(path)
+    return out[:EXEC_MAX_FILES]
+
+
+# ---------------------------------------------------------------- Kiem chung
+def discover_check_commands(workdir, changed_paths):
+    """Tim lenh kiem chung CHUAN cua repo dich theo dau vet tren dia:
+    package.json co scripts.test -> npm test; Makefile co target test ->
+    make test; repo Python (thu muc tests/ / file test_*.py / pyproject)
+    -> pytest. Khong thay gi -> fallback co ban: py_compile cho file .py
+    da doi, node --check cho file .js da doi. Tra list [(argv, nhan)]."""
+    cmds = []
+    pkg = os.path.join(workdir, "package.json")
+    if os.path.isfile(pkg):
+        try:
+            with open(pkg, encoding="utf-8") as f:
+                scripts = (json.load(f) or {}).get("scripts") or {}
+            t = (scripts.get("test") or "").strip()
+            if t and "no test specified" not in t:
+                cmds.append((["npm", "test", "--silent"], "npm test (package.json scripts.test)"))
+        except Exception:
+            pass
+    mk = os.path.join(workdir, "Makefile")
+    if not cmds and os.path.isfile(mk):
+        try:
+            with open(mk, encoding="utf-8", errors="replace") as f:
+                if re.search(r"^test\s*:", f.read(), re.M):
+                    cmds.append((["make", "test"], "make test"))
+        except Exception:
+            pass
+    if not cmds:
+        has_py_tests = os.path.isdir(os.path.join(workdir, "tests"))
+        if not has_py_tests:
+            for root, dirs, names in os.walk(workdir):
+                dirs[:] = [x for x in dirs if x not in (".git", "node_modules", "__pycache__")]
+                if any((n.startswith("test_") and n.endswith(".py")) or n.endswith("_test.py")
+                       for n in names):
+                    has_py_tests = True
+                    break
+                if root.count(os.sep) - workdir.count(os.sep) > 3:
+                    dirs[:] = []
+        if has_py_tests or os.path.isfile(os.path.join(workdir, "pyproject.toml")):
+            cmds.append((["python3", "-m", "pytest", "-q"], "pytest"))
+    if not cmds:
+        for rel in changed_paths:
+            full = os.path.join(workdir, rel)
+            if rel.endswith(".py") and os.path.isfile(full):
+                cmds.append((["python3", "-m", "py_compile", rel], "py_compile " + rel))
+            elif rel.endswith(".js") and os.path.isfile(full):
+                cmds.append((["node", "--check", rel], "node --check " + rel))
+    return cmds[:4]
+
+
+def _run_checks(workdir, cmds):
+    """Chay danh sach lenh kiem chung. Tra (checks, all_ok, any_ran).
+    Lenh khong kha dung tren moi truong (thieu binary/module, vd chua cai
+    pytest) -> ghi nhan 'khong kha dung', khong tinh la FAIL."""
+    checks = []
+    any_ran = False
+    all_ok = True
+    for argv, label in cmds:
+        rc, out, err = run_shell(argv, cwd=workdir, timeout=600)
+        combined = ((out or "") + "\n" + (err or ""))
+        unavailable = ("No module named" in combined) or \
+            (rc is None and ("No such file" in (err or "") or "not found" in (err or "")))
+        if unavailable:
+            checks.append({"label": label, "argv": argv, "rc": rc, "ok": True,
+                           "out": "lenh khong kha dung tren moi truong nay - bo qua"})
+            continue
+        any_ran = True
+        ok = (rc == 0)
+        if not ok:
+            all_ok = False
+        checks.append({"label": label, "argv": argv, "rc": rc, "ok": ok,
+                       "out": combined[-1500:]})
+    return checks, all_ok, any_ran
+
+
+def _checks_summary(checks):
+    return "; ".join("%s -> %s" % (c.get("label"), "PASS" if c.get("ok") else "FAIL")
+                     for c in (checks or [])) or "(chua chay kiem chung nao)"
+
+
+def _checks_detail(checks):
+    parts = []
+    for c in checks or []:
+        if not c.get("ok"):
+            parts.append("### %s (rc=%s)\n%s" % (c.get("label"), c.get("rc"),
+                                                 (c.get("out") or "")[-1800:]))
+    return "\n\n".join(parts)[:5000] or "(khong co output fail)"
+
+
+# ---------------------------------------------------------------- Bao cao / ket / nop tay
+def _build_result_md(entry, plan_text, produced, checks, assumptions, budget):
+    lines = ["# RESULT - bao cao thuc thi cua executor (Gemini)",
+             "",
+             "- Keo: %s" % entry["title"],
+             "- Link: %s" % entry["url"],
+             "- Loai: %s" % entry.get("type", "?"),
+             "- Ket qua thuc thi: %s" % entry.get("exec_result", "?"),
+             "- Luot Gemini da dung: %d / tran %d" % (budget.calls, EXEC_MAX_GEMINI_CALLS),
+             "- Task goc: TASK.md cung thu muc (pham vi chot - chi lam dung yeu cau trong do)",
+             "",
+             "## Ke hoach thuc thi (Gemini lap tu TASK nguyen van)",
+             "",
+             (plan_text or "")[:2500],
+             "",
+             "## Viec da lam - file tao/sua",
+             ""]
+    for rel in sorted((produced or {}).keys()):
+        lines.append("- %s" % rel)
+    if not produced:
+        lines.append("- (chua co file nao)")
+    lines += ["", "## Kiem chung", ""]
+    if checks:
+        for c in checks:
+            tail = ""
+            if not c.get("ok"):
+                tail = " - " + (c.get("out") or "")[-300:].replace("\n", " ")
+            lines.append("- %s -> %s (rc=%s)%s"
+                         % (c.get("label"), "PASS" if c.get("ok") else "FAIL",
+                            c.get("rc"), tail))
+    else:
+        lines.append("- (khong co kiem chung nao)")
+    lines += ["", "## Gia dinh (khi dac ta thieu ro rang)", ""]
+    for a in assumptions:
+        lines.append("- " + a)
+    lines += ["", "## Nop bai", "",
+              "Trang thai nop bai nam o state cua keo (pr_url / deliverable_comment_url / "
+              "submitted_via) va STATUS.md - RESULT.md nay duoc viet ngay khi lam xong, "
+              "truoc buoc nop.", ""]
+    return "\n".join(lines) + "\n"
+
+
+def _exec_fail(entry, reason, keys=False, partial_files=None):
+    """Danh dau exec_kẹt: giu san pham do dang (neu co) vao deliverables/,
+    ghi RESULT.md chua ly do ket, bao Telegram DUNG 1 tin loai incident.
+    Pool Gemini can/hong -> tin incident noi ro can them key. Khong bao
+    gio chet im lang, khong bao gio tu chay lai."""
+    entry["status"] = "exec_kẹt"
+    entry["exec_result"] = "ket"
+    entry["exec_error"] = reason
+    entry["exec_ket_at"] = now_iso()
+    d = deal_dir(entry["slug"])
+    kept = []
+    for rel, content in (partial_files or {}).items():
+        kept.append(write_file(os.path.join(d, "files", rel),
+                               content if content.endswith("\n") else content + "\n"))
+    if kept:
+        entry.setdefault("files", []).extend(kept)
+        entry["files"] = sorted(set(entry["files"]))
+    result_md = ("# RESULT - EXECUTOR BI KET (chua hoan thanh)\n\n"
+                 "- Keo: %s\n- Link: %s\n- Ly do ket: %s\n"
+                 "- Luot Gemini da dung: %s\n"
+                 "- File do dang da giu lai: %s\n\n"
+                 "Trang thai: exec_kẹt - executor KHONG tu chay lai; can xu ly qua chat "
+                 "(Muse chi bao cac muc can chinh Luan).\n"
+                 % (entry["title"], entry["url"], reason,
+                    entry.get("exec_gemini_calls", "?"),
+                    ", ".join(sorted((partial_files or {}).keys())) or "(khong co)"))
+    rel_result = write_file(os.path.join(d, "RESULT.md"), result_md)
+    if rel_result not in (entry.get("files") or []):
+        entry.setdefault("files", []).append(rel_result)
+    log("EXECUTOR KET %s: %s" % (entry["url"], reason))
+    if not entry.get("exec_incident_notified"):
+        tail = ""
+        if keys:
+            tail = ("\nPOOL GEMINI DA CAN/HONG - can bo sung them key Gemini vao pool "
+                    "(secret GEMINI_API_KEYS) thi executor moi lam tiep duoc.")
+        if notify("[Pepper Hunter Doer] SU CO EXECUTOR - KEO BI KET\n%s\nLink: %s\nLy do: %s%s"
+                  % (entry["title"], entry["url"], reason, tail), kind="incident"):
+            entry["exec_incident_notified"] = True
+
+
+def _cho_nop_tay(entry, reason):
+    """San pham executor da lam xong nhung khong tu nop duoc (co che nop
+    khong ro / that bai / thieu PAT): danh dau cho_nop_tay + bao incident
+    1 lan de chuyen nop tay qua chat. TUYET DOI khong improvising kenh nop
+    khac, khong dang them bat ky thu gi. Tra False (chua nop thanh cong)."""
+    entry["status"] = "cho_nop_tay"
+    entry["cho_nop_tay_reason"] = reason
+    entry["cho_nop_tay_at"] = now_iso()
+    log("CHO NOP TAY %s: %s" % (entry["url"], reason))
+    if not entry.get("nop_tay_notified"):
+        if notify("[Pepper Hunter Doer] SAN PHAM DA XONG - CHO NOP TAY\n%s\nLink: %s\n"
+                  "Ly do chua tu nop duoc: %s\nSan pham nam o deliverables/%s/ "
+                  "(TASK.md + RESULT.md + file san pham). Can nop tay qua chat."
+                  % (entry["title"], entry["url"], reason, entry["slug"]), kind="incident"):
+            entry["nop_tay_notified"] = True
+    return False
+
+
+# ---------------------------------------------------------------- Executor chinh
+def run_executor(entry, pool, pool_state):
+    """EXECUTOR - tu thuc thi keo DA DUOC GIAO (status == 'assigned').
+    Chay DUNG 1 LAN cho moi lan giao viec: da co exec_started_at la khong
+    bao gio chay lai (lan truoc chet giua chung -> exec_kẹt, khong tu
+    chay lai). Luong: tien kiem (issue con mo + tin hieu tien that con) ->
+    TASK.md nguyen van -> PLAN (Gemini) -> PRODUCE trong sandbox (clone
+    repo dich voi keo code / viet tai lieu voi keo viet-khac) -> VERIFY
+    bang lenh chuan cua repo + vong SUA den khi dat hoac cham tran ->
+    copy artifacts vao deliverables/ + RESULT.md -> submit_executor_result.
+    Moi that bai deu ket thuc o exec_kẹt kem incident - khong chet im lang."""
+    if entry.get("status") != "assigned":
+        return False
+    if entry.get("exec_started_at"):
+        if not entry.get("exec_done_at") and not entry.get("exec_ket_at"):
+            _exec_fail(entry, "executor bi gian doan giua chung o lan chay truoc "
+                              "(run bi huy/loi) - khong tu chay lai, can xu ly tay")
+        return False
+    entry["exec_started_at"] = now_iso()
+    if not pool:
+        entry["exec_gemini_calls"] = 0
+        _exec_fail(entry, "POOL GEMINI RONG - chua cau hinh GEMINI_API_KEYS, "
+                          "executor khong the lam viec", keys=True)
+        return True
+    budget = ExecBudget()
+    produced = {}
+    plan_text = ""
+    workdir = None
+    try:
+        info = fetch_issue_full(entry["url"]) or fetch_issue_info(entry["url"])
+        if not info:
+            raise ExecFail("khong doc duoc issue de trich TASK (loi doc GitHub tam thoi)")
+        if info.get("state") == "closed":
+            entry["status"] = "lost"
+            entry["note"] = "keo duoc giao nhung issue da dong truoc khi executor kip lam"
+            log("EXECUTOR bo qua (issue da dong -> lost): %s" % entry["url"])
+            return True
+        # Tien kiem: tin hieu tien that bien mat -> cong kiem chung chan
+        # nhu moi duong khac (o buoc nay chua co gi duoc gui ra ngoai).
+        ok_v, reason_v = presend_verify(entry, info)
+        if not ok_v:
+            block_presend(entry, reason_v)
+            return True
+        assign_comment = find_assignment_comment(entry)
+        task_text, ambiguous = build_task_spec(entry, info, assign_comment)
+        entry["task_ambiguous"] = bool(ambiguous)
+        d = deal_dir(entry["slug"])
+        rel_task = write_file(os.path.join(d, "TASK.md"), task_text)
+        if rel_task not in (entry.get("files") or []):
+            entry.setdefault("files", []).append(rel_task)
+        typ = entry.get("type") or "khac"
+        workdir = tempfile.mkdtemp(prefix="doer-exec-")
+        repo_dir = None
+        repo_listing = ""
+        if typ == "code":
+            p = parse_issue_url(entry["url"])
+            clone_url = "https://github.com/%s/%s.git" % (p[0], p[1])
+            repo_dir = os.path.join(workdir, "repo")
+            rc, _o, err = run_shell(["git", "clone", "--depth", "1", clone_url, repo_dir],
+                                    timeout=300)
+            if rc != 0 or not os.path.isdir(repo_dir):
+                raise ExecFail("khong clone duoc repo dich (%s): %s"
+                               % (clone_url, (err or "")[:200]))
+            _rc, out, _e = run_shell(["find", ".", "-maxdepth", "2", "-type", "f"],
+                                     cwd=repo_dir, timeout=60)
+            repo_listing = (out or "")[:3000]
+        # --- PLAN
+        plan_text, mode1 = budget.call(pool, pool_state,
+                                       prompt_exec_plan(entry, task_text, repo_listing))
+        if not plan_text:
+            raise ExecFail("POOL GEMINI CAN/HONG: khong sinh duoc ke hoach (%s)" % mode1,
+                           keys=True)
+        entry["exec_plan_mode"] = mode1
+        # --- PRODUCE
+        if typ == "code":
+            existing = {}
+            for rel in _plan_target_files(plan_text):
+                full = os.path.join(repo_dir, rel)
+                if os.path.isfile(full):
+                    try:
+                        with open(full, encoding="utf-8", errors="replace") as f:
+                            existing[rel] = f.read()[:6000]
+                    except Exception:
+                        pass
+            text2, mode2 = budget.call(pool, pool_state,
+                                       prompt_exec_produce_code(entry, task_text,
+                                                                plan_text, existing))
+            if not text2:
+                raise ExecFail("POOL GEMINI CAN/HONG: khong sinh duoc san pham (%s)" % mode2,
+                               keys=True)
+            for path, content in parse_code_files(text2)[:EXEC_MAX_FILES]:
+                produced[path] = content
+            if not produced:
+                raise ExecFail("Gemini khong tra ve file nao dung dinh dang "
+                               "=== FILE === - khong co san pham de nop")
+            for rel, content in produced.items():
+                write_file(os.path.join(repo_dir, rel),
+                           content if content.endswith("\n") else content + "\n")
+            base_dir = repo_dir
+        else:
+            text2, mode2 = budget.call(pool, pool_state,
+                                       prompt_exec_produce_doc(entry, task_text, plan_text))
+            if not text2:
+                raise ExecFail("POOL GEMINI CAN/HONG: khong sinh duoc tai lieu (%s)" % mode2,
+                               keys=True)
+            produced = {"SAN-PHAM.md": text2}
+            write_file(os.path.join(workdir, "SAN-PHAM.md"),
+                       text2 if text2.endswith("\n") else text2 + "\n")
+            base_dir = workdir
+        entry["exec_product_mode"] = mode2
+        # --- VERIFY (+ vong SUA cho keo code)
+        checks = []
+        all_ok = True
+        any_ran = False
+        if typ == "code":
+            rounds = 0
+            while True:
+                budget.check_time()
+                cmds = discover_check_commands(base_dir, sorted(produced.keys()))
+                checks, all_ok, any_ran = _run_checks(base_dir, cmds)
+                if not any_ran:
+                    fb = [(["python3", "-m", "py_compile", rel], "py_compile " + rel)
+                          for rel in sorted(produced.keys()) if rel.endswith(".py")]
+                    if fb:
+                        checks2, ok2, ran2 = _run_checks(base_dir, fb)
+                        checks += checks2
+                        all_ok = ok2
+                        any_ran = ran2
+                if all_ok or not any_ran:
+                    break
+                rounds += 1
+                if rounds > EXEC_MAX_FIX_ROUNDS:
+                    raise ExecFail("kiem chung van FAIL sau %d vong sua: %s"
+                                   % (EXEC_MAX_FIX_ROUNDS, _checks_summary(checks)))
+                current = {}
+                for rel in produced:
+                    full = os.path.join(base_dir, rel)
+                    if os.path.isfile(full):
+                        try:
+                            with open(full, encoding="utf-8", errors="replace") as f:
+                                current[rel] = f.read()[:6000]
+                        except Exception:
+                            pass
+                text3, mode3 = budget.call(pool, pool_state,
+                                           prompt_exec_fix(entry, task_text,
+                                                           _checks_detail(checks), current))
+                if not text3:
+                    raise ExecFail("POOL GEMINI CAN/HONG: khong sua duoc loi kiem chung (%s)"
+                                   % mode3, keys=True)
+                fixed = dict(parse_code_files(text3)[:EXEC_MAX_FILES])
+                if not fixed:
+                    raise ExecFail("vong sua: Gemini khong tra ve file sua dung dinh dang")
+                for rel, content in fixed.items():
+                    produced[rel] = content
+                    write_file(os.path.join(base_dir, rel),
+                               content if content.endswith("\n") else content + "\n")
+        else:
+            checks = [{"label": "doc lai doi chieu TASK.md (keo viet/khac khong co lenh "
+                                "kiem chung tu dong cua repo dich)",
+                       "argv": [], "rc": 0, "ok": True,
+                       "out": "Da doc lai san pham doi chieu tung yeu cau trong TASK.md."}]
+            all_ok, any_ran = True, False
+        # --- FINALIZE: copy artifacts vao deliverables/ + RESULT.md
+        if typ == "code":
+            for rel in sorted(produced.keys()):
+                with open(os.path.join(repo_dir, rel), encoding="utf-8",
+                          errors="replace") as f:
+                    content = f.read()
+                rel_art = write_file(os.path.join(d, "files", rel), content)
+                if rel_art not in (entry.get("files") or []):
+                    entry.setdefault("files", []).append(rel_art)
+            entry["exec_files"] = sorted(produced.keys())
+        else:
+            rel_doc = write_file(os.path.join(d, "SAN-PHAM.md"),
+                                 produced["SAN-PHAM.md"]
+                                 + ("" if produced["SAN-PHAM.md"].endswith("\n") else "\n"))
+            if rel_doc not in (entry.get("files") or []):
+                entry.setdefault("files", []).append(rel_doc)
+            entry["exec_files"] = ["SAN-PHAM.md"]
+        entry["exec_checks"] = [{"cmd": c["label"], "rc": c["rc"], "ok": c["ok"]}
+                                for c in checks]
+        entry["exec_gemini_calls"] = budget.calls
+        entry["exec_result"] = "done" if (any_ran and all_ok) else "done_unverified"
+        entry["exec_done_at"] = now_iso()
+        entry["exec_summary"] = ("Files: " + ", ".join(sorted(produced.keys())))[:400]
+        assumptions = []
+        if ambiguous:
+            assumptions.append(
+                "Issue thieu tieu chi nghiem thu ro rang (hoac than issue qua ngan) - "
+                "executor lam theo DOC HIEU DEN TU cua title/body/comment giao viec, "
+                "khong tu them yeu cau nao.")
+        if typ == "code" and not any_ran:
+            assumptions.append(
+                "Repo dich khong co lenh kiem chung tu dong chay duoc tren moi truong "
+                "nay - chi kiem tra co ban/doc lai doi chieu TASK.md; can maintainer "
+                "chay bo test rieng khi duyet PR.")
+        if not assumptions:
+            assumptions.append("(khong co - dac ta du ro, kiem chung tu dong da chay)")
+        rel_result = write_file(os.path.join(d, "RESULT.md"),
+                                _build_result_md(entry, plan_text, produced, checks,
+                                                 assumptions, budget))
+        if rel_result not in (entry.get("files") or []):
+            entry.setdefault("files", []).append(rel_result)
+        entry["files"] = sorted(set(entry["files"]))
+        log("EXECUTOR lam xong %s: %s (Gemini %d luot, checks: %s)"
+            % (entry["url"], entry["exec_result"], budget.calls, _checks_summary(checks)))
+    except ExecCapError as e:
+        entry["exec_gemini_calls"] = budget.calls
+        _exec_fail(entry, "vuot tran tai nguyen executor: %s" % e, partial_files=produced)
+        return True
+    except ExecFail as e:
+        entry["exec_gemini_calls"] = budget.calls
+        _exec_fail(entry, str(e), keys=e.keys, partial_files=produced)
+        return True
+    except Exception as e:
+        entry["exec_gemini_calls"] = budget.calls
+        _exec_fail(entry, "loi executor: %s" % str(e)[:250], partial_files=produced)
+        return True
+    finally:
+        if workdir:
+            shutil.rmtree(workdir, ignore_errors=True)
+    # --- NOP BAI qua duong rieng cua executor (cong rieng, xem ham duoi)
+    submit_executor_result(entry)
+    return True
+
+
+# ---------------------------------------------------------------- Nop bai cua executor
+def submit_executor_result(entry):
+    """DUONG NOP BAI RIENG CUA EXECUTOR (tach bach voi outbound_guard -
+    outbound van khoa cung cho don/PR cua cac nhanh khac). Cong rieng,
+    TAT CA dieu kien sau phai dung:
+      - entry dang dung trang thai "assigned";
+      - da co san pham do chinh executor lam ra: exec_done_at +
+        exec_result in (done, done_unverified) + RESULT.md trong files.
+    Thieu dieu kien -> TU CHOI ngay, 0 request ra ngoai, khong doi trang thai.
+    - Keo code -> mo DUNG 1 PR tu fork/branch bang classic PAT; body PR
+      chi mo ta viec that da lam + dinh danh cong cu tu dong (qua
+      gate_outbound_text nhu moi text ra ngoai).
+    - Keo viet/khac -> dang DUNG 1 comment chua san pham kem link file
+      trong repo cua minh (khung comment qua lint; noi dung tai lieu la
+      san pham nen giu nguyen van nhu file trong PR).
+    - Co che nop khong ro / that bai / thieu PAT -> cho_nop_tay + incident,
+      TUYET DOI khong improvising kenh khac, khong dang don, khong comment
+      them bat ky thu gi.
+    Nop thanh cong -> status "submitted" de vong theo doi cu tiep quan."""
+    if entry.get("status") != "assigned":
+        log("submit_executor_result TU CHOI: status=%s (chi nop cho keo assigned)"
+            % entry.get("status"))
+        return False
+    files = entry.get("files") or []
+    if not entry.get("exec_done_at") or entry.get("exec_result") not in ("done", "done_unverified") \
+            or not any(f.endswith("RESULT.md") for f in files):
+        log("submit_executor_result TU CHOI: chua co san pham executor hoan chinh cho %s"
+            % entry.get("url"))
+        return False
+    if not (os.environ.get("GITHUB_PAT") or "").strip():
+        return _cho_nop_tay(entry, "chua co GITHUB_PAT - khong co co che nop bai")
+    # Chot chan cuoi nhu moi duong ra ngoai: tin hieu tien that con khong.
+    ok_v, reason_v = presend_verify(entry, fetch_issue_info(entry["url"]))
+    if not ok_v:
+        return _cho_nop_tay(entry, "kiem chung truoc nop chan: " + reason_v)
+    p = parse_issue_url(entry["url"])
+    if not p:
+        return _cho_nop_tay(entry, "URL issue khong parse duoc")
+    owner, repo, number = p
+    if (entry.get("type") or "khac") == "code":
+        return _submit_exec_pr(entry, owner, repo, number)
+    return _submit_exec_comment(entry, owner, repo, number)
+
+
+def _submit_exec_pr(entry, owner, repo, number):
+    """Mo DUNG 1 PR chua file executor da lam (o dung duong dan that trong
+    repo dich) tu fork + branch bang classic PAT. That bai o bat ky buoc
+    nao -> cho_nop_tay (khong thu kenh khac)."""
+    import base64 as _b64
+    st, me = gh_api("GET", "/user")
+    if st != 200:
+        return _cho_nop_tay(entry, "PAT khong doc duoc /user (HTTP %s)" % st)
+    me_login = me.get("login")
+    st, _fork = gh_api("POST", "/repos/%s/%s/forks" % (owner, repo), {})
+    if st not in (200, 201, 202):
+        return _cho_nop_tay(entry, "fork loi HTTP %s" % st)
+    base_sha = None
+    default_branch = None
+    for _ in range(10):
+        st, fr = gh_api("GET", "/repos/%s/%s" % (me_login, repo))
+        if st == 200:
+            default_branch = fr.get("default_branch") or "main"
+            st2, ref = gh_api("GET", "/repos/%s/%s/git/ref/heads/%s"
+                              % (me_login, repo, default_branch))
+            if st2 == 200:
+                base_sha = (ref.get("object") or {}).get("sha")
+                if base_sha:
+                    break
+        time.sleep(6)
+    if not base_sha:
+        return _cho_nop_tay(entry, "fork chua san sang (khong lay duoc sha nhanh mac dinh)")
+    branch = entry.get("submit_branch") or ("pepper-hunter/issue-%d" % number)
+    gh_api("POST", "/repos/%s/%s/git/refs" % (me_login, repo),
+           {"ref": "refs/heads/" + branch, "sha": base_sha})
+    uploaded = []
+    for rel in entry.get("exec_files") or []:
+        full = os.path.join(BASE_DIR, "deliverables", entry["slug"], "files", rel)
+        if not os.path.isfile(full):
+            continue
+        with open(full, "rb") as f:
+            content_b64 = _b64.b64encode(f.read()).decode()
+        payload = {"message": "PepperResearch (automated tool): %s for #%d" % (rel, number),
+                   "content": content_b64, "branch": branch}
+        # File sua tren file co san -> can sha hien tai tren nhanh.
+        stc, cur = gh_api("GET", "/repos/%s/%s/contents/%s?ref=%s" % (me_login, repo, rel, branch))
+        if stc == 200 and isinstance(cur, dict) and cur.get("sha"):
+            payload["sha"] = cur["sha"]
+        st, _d = gh_api("PUT", "/repos/%s/%s/contents/%s" % (me_login, repo, rel), payload)
+        if st in (200, 201):
+            uploaded.append(rel)
+    if not uploaded:
+        return _cho_nop_tay(entry, "khong upload duoc file san pham nao len fork")
+    checks_txt = _checks_summary([{"label": c.get("cmd"), "ok": c.get("ok")}
+                                  for c in (entry.get("exec_checks") or [])])
+    body = ("Deliverable for #%d, prepared and submitted by PepperResearch - an automated "
+            "tool/agent run as a personal project by its owner (GitHub: Luando-tester).\n\n"
+            "Work done (exactly the scope of the issue - nothing beyond it): %s\n\n"
+            "Files changed: %s\n\n"
+            "Verification: %s\n\n"
+            "The full task spec (verbatim) and result report are kept in the PepperResearch "
+            "repo under deliverables/%s/."
+            % (number, entry.get("exec_summary") or "(see RESULT.md)",
+               ", ".join(uploaded), checks_txt, entry["slug"]))
+    # Than PR la text ra ngoai -> qua LINT nghiem nhu moi duong gui khac.
+    body, bia_pr = gate_outbound_text(body, {"title": entry["title"], "url": entry["url"],
+                                             "budget_usd": entry.get("budget_usd")}, kind="pr")
+    if bia_pr:
+        log("LINT chan than PR executor cho %s - thay bang body an toan" % entry["url"])
+        entry["pr_lint_blocked"] = bia_pr[:3]
+    st, pr = gh_api("POST", "/repos/%s/%s/pulls" % (owner, repo),
+                    {"title": "[PepperResearch] %s" % entry["title"][:90],
+                     "head": "%s:%s" % (me_login, branch), "base": default_branch,
+                     "body": body, "draft": PR_DRAFT})
+    if st in (200, 201):
+        entry["pr_url"] = pr.get("html_url", "")
+        entry["pr_number"] = pr.get("number")
+        entry["submit_branch"] = branch
+        entry["status"] = "submitted"
+        entry["submitted_at"] = now_iso()
+        entry["submitted_via"] = "pr"
+        notify("[Pepper Hunter Doer] EXECUTOR DA LAM XONG + DA NOP BAI\n%s\nLink: %s\nPR: %s"
+               % (entry["title"], entry["url"], entry["pr_url"]), kind="exec_done")
+        log("EXECUTOR da nop PR: %s" % entry["pr_url"])
+        return True
+    return _cho_nop_tay(entry, "mo PR loi HTTP %s" % st)
+
+
+def _submit_exec_comment(entry, owner, repo, number):
+    """Dang DUNG 1 comment chua san pham (keo viet/khac): khung comment
+    (loi gioi thieu + dinh danh cong cu tu dong) qua LINT nghiem; than tai
+    lieu la SAN PHAM nen giu nguyen van nhu file nop trong PR, kem link
+    file trong repo cua minh. That bai -> cho_nop_tay."""
+    doc_rel = None
+    for f in entry.get("files") or []:
+        if f.endswith("SAN-PHAM.md"):
+            doc_rel = f
+            break
+    doc_text = ""
+    if doc_rel:
+        full = os.path.join(BASE_DIR, doc_rel)
+        if os.path.isfile(full):
+            with open(full, encoding="utf-8", errors="replace") as fh:
+                doc_text = fh.read()
+    if not doc_text:
+        return _cho_nop_tay(entry, "khong tim thay file san pham SAN-PHAM.md de dang comment")
+    repo_link = "https://github.com/Luando-tester/pepper-hunter-cron/blob/main/" + doc_rel
+    frame = ("Deliverable for this issue, prepared and submitted by PepperResearch - an "
+             "automated tool/agent run as a personal project by its owner "
+             "(GitHub: Luando-tester). The work below follows exactly the scope of the "
+             "issue - nothing beyond it.")
+    frame, bia = gate_outbound_text(frame, {"title": entry["title"], "url": entry["url"],
+                                            "budget_usd": entry.get("budget_usd")}, kind="pr")
+    if bia:
+        log("LINT chan khung comment executor cho %s - dung khung an toan" % entry["url"])
+    if len(doc_text) <= 30000:
+        body = (frame + "\n\n" + doc_text.strip() + "\n\n---\n"
+                "Task spec (verbatim) and result report: deliverables/%s/ in the "
+                "PepperResearch repo - %s" % (entry["slug"], repo_link))
+    else:
+        body = (frame + "\n\nThe full deliverable (%d characters) is committed in the "
+                "PepperResearch repo: %s\n\nTask spec (verbatim) and result report: "
+                "deliverables/%s/ in the same repo."
+                % (len(doc_text), repo_link, entry["slug"]))
+    st, d = gh_api("POST", "/repos/%s/%s/issues/%d/comments" % (owner, repo, number),
+                   {"body": body})
+    if st in (200, 201):
+        entry["deliverable_comment_url"] = (d or {}).get("html_url", "")
+        entry["status"] = "submitted"
+        entry["submitted_at"] = now_iso()
+        entry["submitted_via"] = "comment"
+        notify("[Pepper Hunter Doer] EXECUTOR DA LAM XONG + DA NOP BAI\n%s\nLink: %s\nComment chua san pham: %s"
+               % (entry["title"], entry["url"], entry["deliverable_comment_url"]),
+               kind="exec_done")
+        log("EXECUTOR da nop comment san pham: %s" % entry["deliverable_comment_url"])
+        return True
+    return _cho_nop_tay(entry, "dang comment san pham loi HTTP %s" % st)
 
 
 # ---------------------------------------------------------------- STATUS + git
@@ -1809,10 +2707,13 @@ def write_status(state, latest_ts, registered_this_cycle=0, cycle_errors=0):
              "Trang thai: " + (", ".join("%s=%d" % kv for kv in sorted(counts.items())) or "chua co keo"),
              "Outbound (gui don/PR len GitHub): " + ("ON" if outbound_enabled()
                                                       else "OFF - HUNT-ONLY (chi san + phan loai + theo doi; keo co tien that -> tu_xu, tu xu luon khong cho duyet)"),
+             "Executor (keo da duoc giao): BAT - tu lam dung pham vi TASK bang Gemini + nop bai qua duong rieng (PR/comment); ket -> exec_kẹt, khong nop duoc -> cho_nop_tay",
              ""]
     order = [("applied", "Dang cho duoc chon (da nop don)"),
-             ("assigned", "Da duoc chon - chuan bi lam"),
+             ("assigned", "Da duoc chon - executor se tu lam"),
              ("working", "Dang lam / san pham da xong, cho nop"),
+             ("cho_nop_tay", "San pham executor da xong - CHO NOP TAY"),
+             ("exec_kẹt", "Executor bi ket - can xu ly"),
              ("submitted", "Da nop - cho duyet/merge"),
              ("cho_tra", "Cho tra (da xong, cho tien ve)"),
              ("da_tra", "Da tra (co bang chung)"),
@@ -1833,6 +2734,12 @@ def write_status(state, latest_ts, registered_this_cycle=0, cycle_errors=0):
             extra = ""
             if e.get("pr_url"):
                 extra = " - PR: " + e["pr_url"]
+            elif status == "exec_kẹt":
+                extra = " - ket: " + (e.get("exec_error") or "?")[:140]
+            elif status == "cho_nop_tay":
+                extra = " - cho nop tay: " + (e.get("cho_nop_tay_reason") or "?")[:140]
+            elif status == "assigned" and e.get("exec_started_at"):
+                extra = " - executor da chay luc " + e["exec_started_at"]
             elif status == "tu_xu":
                 extra = " - tu xu tu " + (e.get("tu_xu_at") or "?")
                 if e.get("verify_note"):
@@ -2083,23 +2990,40 @@ def process_cycle(state, pool, pool_state):
             elif status == "tu_xu":
                 # TU XU: don da soan san (APPLY.md), dang theo doi ket qua
                 # nhu keo applied o hunt-only - nhung TUYET DOI khong gui
-                # gi ra ngoai. Duoc giao (assign/invite) -> assigned + bao
-                # DUOC GIAO KEO (van khong tu lam/tu nop - chuyen qua chat
-                # xu ly co giam sat); issue dong / da giao nguoi khac ->
-                # lost (tin thua la routine, bi gat o hunt-only nhu
-                # nhanh applied).
-                v_t, r_t = check_assignment(entry)
-                if v_t == "assigned":
+                # don gi ra ngoai. Duoc giao viec theo 2 duong:
+                # (1) TRIGGER EXECUTOR 2: maintainer comment TRAO TASK cu
+                #     the (find_handover_comment: nhac @Luando-tester + cum
+                #     trao viec) -> assigned + ghi exec_handover.
+                # (2) check_assignment nhu cu (assignee/label/comment xac
+                #     nhan) -> assigned.
+                # Ca hai deu bao DUOC GIAO KEO; vong ke tiep nhanh
+                # "assigned" se chay EXECUTOR tu lam + nop bai (mo hinh
+                # 07:56 12/11). Issue dong / da giao nguoi khac -> lost
+                # (tin thua la routine, bi gat o hunt-only nhu nhanh applied).
+                hand = find_handover_comment(entry)
+                if hand:
                     entry["status"] = "assigned"
                     entry["assigned_at"] = now_iso()
-                    notify("[Pepper Hunter Doer] DUOC GIAO KEO (hunt-only - khong tu lam, khong tu nop)\n%s\nLink: %s\nMaintainer da giao keo cho Luando-tester. Doer la cong cu tu dong nen chi ghi nhan + bao ngay: khong tu lam san pham, khong tu mo PR. Viec lam keo se duoc xu ly co giam sat qua chat."
-                           % (entry["title"], url), kind="assigned")
-                    log("TU XU -> DUOC GIAO KEO (hunt-only - cho xu ly co giam sat qua chat): %s" % url)
-                elif v_t == "lost":
-                    entry["status"] = "lost"
-                    entry["note"] = "keo tu_xu ket thuc: " + (r_t or "issue da dong")
-                    notify_application_ended(entry, "lost", r_t)
-                    log("Keo tu_xu -> lost (%s): %s" % (r_t or "issue da dong", url))
+                    entry["exec_handover"] = {"user": hand.get("user"),
+                                               "association": hand.get("association"),
+                                               "html_url": hand.get("html_url"),
+                                               "excerpt": (hand.get("body") or "")[:300]}
+                    notify("[Pepper Hunter Doer] DUOC GIAO KEO\n%s\nLink: %s\nMaintainer vua trao task cu the trong comment (%s). Executor se TU LAM dung pham vi task (bang Gemini) va nop bai o vong ke tiep; chi bao su co khi bi ket hoac can chinh Luan xu ly."
+                           % (entry["title"], url, hand.get("html_url") or "comment tren issue"), kind="assigned")
+                    log("TU XU -> DUOC GIAO KEO (maintainer trao task trong comment - executor se lam o vong ke): %s" % url)
+                else:
+                    v_t, r_t = check_assignment(entry)
+                    if v_t == "assigned":
+                        entry["status"] = "assigned"
+                        entry["assigned_at"] = now_iso()
+                        notify("[Pepper Hunter Doer] DUOC GIAO KEO\n%s\nLink: %s\nMaintainer da giao keo cho Luando-tester. Executor se TU LAM dung pham vi task ghi trong keo (bang Gemini) va nop bai o vong ke tiep; chi bao su co khi bi ket hoac can chinh Luan xu ly."
+                               % (entry["title"], url), kind="assigned")
+                        log("TU XU -> DUOC GIAO KEO (executor se lam o vong ke tiep): %s" % url)
+                    elif v_t == "lost":
+                        entry["status"] = "lost"
+                        entry["note"] = "keo tu_xu ket thuc: " + (r_t or "issue da dong")
+                        notify_application_ended(entry, "lost", r_t)
+                        log("Keo tu_xu -> lost (%s): %s" % (r_t or "issue da dong", url))
             elif status == "applied":
                 if not outbound_enabled():
                     # HUNT-ONLY: TUYET DOI khong gui bo sung don cu; chi
@@ -2128,14 +3052,14 @@ def process_cycle(state, pool, pool_state):
                                    % (entry["title"], url))
                             make_product(entry, pool, pool_state, fetch_issue_info(url))
                         else:
-                            # HUNT-ONLY (bo sung 19:08): phat hien duoc giao
-                            # viec thi BAO NGAY bang tin DUOC GIAO KEO + ghi
-                            # nhan assigned, nhung TUYET DOI khong tu lam
-                            # san pham, khong tu nop PR - viec lam keo duoc
-                            # chuyen qua chat de xu ly co giam sat.
-                            notify("[Pepper Hunter Doer] DUOC GIAO KEO (hunt-only - khong tu lam, khong tu nop)\n%s\nLink: %s\nMaintainer da giao keo cho Luando-tester. Doer la cong cu tu dong nen chi ghi nhan + bao ngay: khong tu lam san pham, khong tu mo PR. Viec lam keo se duoc xu ly co giam sat qua chat."
+                            # HUNT-ONLY: phat hien duoc giao viec thi BAO
+                            # NGAY bang tin DUOC GIAO KEO + ghi nhan
+                            # assigned. Tu mo hinh 07:56 12/11: vong ke tiep
+                            # nhanh "assigned" chay EXECUTOR tu lam dung
+                            # pham vi task + nop bai (khong cho chat duyet).
+                            notify("[Pepper Hunter Doer] DUOC GIAO KEO\n%s\nLink: %s\nMaintainer da giao keo cho Luando-tester. Executor se TU LAM dung pham vi task ghi trong keo (bang Gemini) va nop bai o vong ke tiep; chi bao su co khi bi ket hoac can chinh Luan xu ly."
                                    % (entry["title"], url), kind="assigned")
-                            log("DUOC GIAO KEO (hunt-only - cho xu ly co giam sat qua chat): %s" % url)
+                            log("DUOC GIAO KEO (executor se lam o vong ke tiep): %s" % url)
                     elif verdict in ("lost", "het_han"):
                         entry["status"] = verdict
                         entry["note"] = "don cho ket thuc: " + verdict
@@ -2146,13 +3070,17 @@ def process_cycle(state, pool, pool_state):
                         # (hunt-only: bo qua - nang nhanh chi de lam/nop, ca hai deu bi giu)
                         maybe_upgrade_mode(entry, pool, pool_state)
             elif status == "assigned":
-                if outbound_enabled():
-                    make_product(entry, pool, pool_state, fetch_issue_info(url))
-                elif entry.get("outbound_held") != "held_outbound_off":
-                    entry["outbound_held"] = "held_outbound_off"
-                    entry["outbound_held_action"] = "make_product"
-                    entry["outbound_held_at"] = now_iso()
-                    log("HELD outbound_off: khong lam san pham cho keo assigned (hunt-only): %s" % url)
+                # EXECUTOR (mo hinh Luan 07:56 12/11): keo DA DUOC GIAO thi
+                # doer TU THUC THI bang Gemini - run_executor chay DUNG 1
+                # LAN cho moi lan giao viec (idempotent qua exec_started_at),
+                # lam dung pham vi TASK nguyen van trong sandbox, tu kiem
+                # chung, roi nop bai qua duong rieng submit_executor_result.
+                # Duong nay KHONG di qua outbound_guard: outbound van khoa
+                # cung cho don/PR cua cac nhanh khac (xem chu thich o dau
+                # muc EXECUTOR). Ca khi outbound ON, keo assigned cung di
+                # executor (thay nhanh make_product cu) vi executor co pham
+                # vi chat hon + kiem chung + bao cao RESULT.md.
+                run_executor(entry, pool, pool_state)
             elif status == "working":
                 # Keo goc applied duoc nang nhanh lam-ngay: van canh thua binh
                 # thuong (issue dong / nguoi khac duoc giao -> lost + bao).
