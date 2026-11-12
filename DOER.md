@@ -10,6 +10,25 @@ Hệ không chỉ tìm kèo + báo: **nó tự làm ra sản phẩm**. Ba tầng
 
 > Thiết kế cũ "cron phía Muse chạy doer" đã BỎ. Muse chỉ còn vai trò kiểm tra/bảo trì hệ, không nằm trong vòng vận hành.
 
+## Mô hình vận hành HIỆN TẠI (chốt 12/11/2026 — đọc mục này trước, các mục cũ bên dưới chỉ còn giá trị lịch sử)
+
+Ba thay đổi lớn sau sự cố 11/11, theo thứ tự thời gian:
+
+1. **HUNT-ONLY (18:59 11/11)** — kill-switch `state/control.json` ghi `{"outbound": false}` (file thiếu/hỏng → OFF, fail-closed): doer TUYỆT ĐỐI không gửi đơn/claim/follow-up/PR qua các đường cũ — `make_apply` / `resend_apply` / `submit_github` đều bị `outbound_guard()` chặn cứng, gửi đúng 0 request. Muốn mở lại outbound bắt buộc sửa control.json thành `{"outbound": true}` rồi commit (hành động có chủ đích). Telegram ở chế độ này chỉ nhận các loại tin: `choduyet`, `assigned` (ĐƯỢC GIAO KEO), `incident`, `tienve` (bật lại 05:21 12/11), `exec_done` (12/11); mọi tin routine bị gạt qua `notify()`.
+2. **TU_XU — bỏ bước chờ duyệt (05:23 12/11)** — kèo mới qua kiểm chứng tiền thật KHÔNG còn đỗ chờ duyệt nữa: trạng thái đỗ cũ là `cho_duyet` (nay là di sản — entry nào còn ở đó tự chuyển sang `tu_xu` ở vòng kế tiếp, không báo trùng). Ở `tu_xu`, doer tự chuẩn bị nội bộ: soạn sẵn `deliverables/<slug>/APPLY.md` bằng **template an toàn** (chỉ hồ sơ thật REAL_PROFILE, KHÔNG dùng Gemini viết đơn tự do) + ghi `verify_note` (bằng chứng tín hiệu tiền thật) + báo đúng 1 tin loại `choduyet`, rồi theo dõi. Đơn soạn sẵn **không được gửi đi** (outbound vẫn khóa).
+3. **EXECUTOR (07:56 12/11)** — kèo **ĐÃ ĐƯỢC GIAO** (trạng thái `assigned`: qua assignee/label/comment xác nhận của maintainer, hoặc maintainer comment **trao task cụ thể** trên kèo `tu_xu` — trigger 2, hàm `find_handover_comment`) thì doer **tự thực thi bằng Gemini như Muse**:
+   - `deliverables/<slug>/TASK.md` = title + body issue + comment giao việc **NGUYÊN VĂN** — đó là phạm vi chốt: chỉ làm đúng yêu cầu ghi trong đó, không thêm bất kỳ yêu cầu nào; đặc tả thiếu/mơ hồ thì làm theo đọc hiểu đen tu (literal) và ghi giả định vào RESULT.md.
+   - PLAN (Gemini) → PRODUCE trong sandbox tạm: kèo `code` thì clone repo đích (public, auth bằng classic PAT) rồi cài đặt đúng task; kèo `viet`/`khac` thì viết tài liệu trong workdir, chỉ dùng sự thật của REAL_PROFILE khi tự giới thiệu.
+   - VERIFY bằng lệnh chuẩn của chính repo đích khi tìm thấy (package.json `scripts.test` → `npm test`; Makefile → `make test`; Python → `pytest`; không có thì fallback `py_compile`/`node --check`), vòng sửa lặp lại khi fail. **Trần cứng mỗi task: 60 lượt Gemini + ~25 phút.**
+   - Artifacts chép vào `deliverables/<slug>/`: `TASK.md`, `RESULT.md` (việc đã làm + file + cách kiểm chứng + giả định), `files/<đường dẫn thật>` (kèo code) hoặc `SAN-PHAM.md` (kèo viết).
+   - **Nộp bài qua hàm RIÊNG `submit_executor_result()`** — cổng riêng tách bạch với `outbound_guard` (outbound vẫn khóa cứng, xem mục 1): chỉ mở khi entry đúng `assigned` VÀ đã có sản phẩm executor (`exec_done_at` + `exec_result` + RESULT.md). Kèo code → mở **đúng 1 PR** từ fork/branch bằng classic PAT, body chỉ mô tả việc thật đã làm (file, kiểm chứng, kết quả — 0 nhận kinh nghiệm, có dòng định danh công cụ tự động của dự án cá nhân, qua LINT như mọi text ra ngoài). Kèo viet/khac → đăng **đúng 1 comment** chứa sản phẩm (khung qua LINT) kèm link file trong repo này. Nộp thành công → trạng thái `submitted`, vòng theo dõi merge/trả tiền sẵn có tiếp quản (`check_submitted` → `cho_tra` → `da_tra` → tin TIEN VE; riêng bài nộp bằng comment thì dấu hiệu nghiệm thu là issue được đóng sau khi giao).
+   - Làm không xong / chạm trần / pool Gemini cạn → trạng thái **`exec_kẹt`** + đúng 1 tin `incident` (cạn key thì tin nói rõ hết key — **không bao giờ chết im lặng**) + giữ lại sản phẩm dở dang; executor **không tự chạy lại** (idempotent qua `exec_started_at`).
+   - Cơ chế nộp không rõ hoặc nộp thất bại → trạng thái **`cho_nop_tay`** (sản phẩm đã xong, chờ nộp tay) + 1 tin `incident` — **không improvising kênh nộp khác**.
+   - Muse (chat) chỉ còn nhận các mục cần chính Luân xử lý (KYC/ký ví/tạo tài khoản/dán key/liên kết tài khoản).
+   - Cấm tuyệt đối như cũ: không đăng tuyển/ứng tuyển, không bịa claim hay task, kèo bẩn bị cổng sạch loại từ intake.
+
+Các mục bên dưới (máy trạng thái `cho_duoc_chon`/`lam_ngay`, luồng nộp đơn bằng PAT, làm sản phẩm khi `assigned` bằng `make_product`...) mô tả **thiết kế gốc trước 11/11** — chỉ còn giá trị lịch sử và tham chiếu cho các cổng an toàn vẫn dùng chung (`presend_verify`, LINT, dedupe trước gửi, cổng repo bẫy/mirror, nhịp Telegram). Hành vi hiện hành lấy mục này + docstring đầu `doer.py` làm chuẩn.
+
 ## Intake — 2 nguồn nạp kèo (vá lỗi 19:0x 10/11)
 
 Bản đầu có 1 lỗi kép khiến doer chạy mà **không kèo nào lọt vào xử lý**: (1) nó chỉ đọc `GET /latest` — mà `/latest` chỉ giữ kèo của tick gần nhất, nên 9 kèo sạch đầu tiên (vòng 17:50) đã bị tick sau ghi đè trước khi doer khởi động; (2) Cloudflare chặn User-Agent mặc định `Python-urllib` (HTTP 403) và code cũ **return sớm ngay tại bước này**, bỏ qua toàn bộ vòng — kể cả ghi STATUS và commit, nên STATUS.md đứng yên như hệ chết. Đã vá:
@@ -60,6 +79,8 @@ Title khớp mẫu `bounty alert | new paid opportunit… | new opportunities | 
 **Heartbeat STATUS**: `STATUS.md` luôn có dòng "Dang chay binh thuong - cap nhat HH:MM VN, tong keo dang theo doi: N, moi dang ky vong nay: M" và được commit lại **tối thiểu mỗi ~15 phút** (`DOER_HEARTBEAT_SEC`, mặc định 900) kể cả khi không có thay đổi — mở STATUS là biết hệ sống. (Vá kèm: `git push` phải dùng `HEAD:main` vì `actions/checkout` để repo ở detached HEAD — `git push` trần lỗi "not currently on a branch".)
 
 ## Máy trạng thái (quan trọng nhất)
+
+> **LƯU Ý 12/11:** mục này mô tả thiết kế GỐC. Hiện hành: kèo chờ được chọn đỗ ở `tu_xu` (đơn soạn sẵn bằng template an toàn, KHÔNG gửi — mục "Mô hình vận hành HIỆN TẠI" ở đầu tài liệu), và kèo được giao đi **EXECUTOR** tự làm + nộp bài, không qua luồng `make_product`/`submit_github` bên dưới (hai đường đó đang bị outbound_guard khóa cứng).
 
 Nhiều kèo **phải thắng/được chọn trước mới được làm** (kiểu Synmerco thắng bid, sàn assignment kiểu Algora/Opire). Mỗi kèo có trường `mode`:
 
