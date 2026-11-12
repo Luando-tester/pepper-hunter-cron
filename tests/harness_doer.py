@@ -42,6 +42,19 @@ Bo sung sau lenh hunt-only (18:59 + 19:01 11/11):
   cac khoi do (set_outbound(True)) roi tat lai ngay; ky vong cua tung ca
   khong doi.
 
+Bo sung EXECUTOR (mo hinh Luan 07:56 12/11):
+  (x) Keo assigned -> executor tu lam bang Gemini (mock dispatcher theo
+      marker prompt) trong sandbox (run_shell mock: clone gia + npm test
+      gia) -> TASK.md + file san pham + RESULT.md trong deliverables/,
+      nop PR qua duong rieng (0 comment dang don, khong bao gio goi
+      make_apply/resend_apply, dung 1 tin exec_done); cong nop tu choi
+      entry khong phai assigned / chua co san pham; cham tran luot Gemini
+      -> exec_kẹt + giu san pham do dang + dung 1 incident; keo viet mo ho
+      -> lam theo doc hieu den tu, RESULT.md ghi gia dinh, nop bang 1
+      comment chua san pham; trigger 2: maintainer comment trao task cu
+      the tren keo tu_xu -> assigned (exec_handover) -> vong ke executor
+      lam + nop; pool Gemini can -> exec_kẹt + incident noi ro het key.
+
 Cach chay: python3 tests/harness_doer.py  (thoat 0 neu tat ca PASS)
 """
 import importlib.util, json, os, re, shutil, sys, tempfile
@@ -80,9 +93,15 @@ def fake_gh_api(method, path, obj=None):
     if method == "POST":
         POSTS.append((path, obj))
         return 201, {"html_url": "https://github.com/x/y/pull/9", "number": 9}
+    if method == "PUT":
+        POSTS.append((path, obj))
+        return 201, {"content": {"sha": "put-sha"}}
     if method == "GET":
         if path.startswith("/search/issues"):
             return 200, {"items": []}
+        m = re.match(r"/repos/([^/]+)/([^/]+)/git/ref/heads/(.+)$", path or "")
+        if m:
+            return 200, {"object": {"sha": "base-sha-123"}}
         if path == "/user":
             return 200, {"login": "Luando-tester"}
         m = re.match(r"/repos/([^/]+)/([^/]+)/pulls/(\d+)$", path or "")
@@ -585,6 +604,257 @@ check("(h) wording: REAL_PROFILE + template khong dong vai nguoi/nghien cuu doc 
       and "automated tool/agent" in doer.REAL_PROFILE
       and "automated tool/agent" in doer.template_apply({"title": "X", "url": h1_url, "budget_usd": 5}),
       doer.REAL_PROFILE[:100])
+
+# ============================================================ (x) EXECUTOR
+# Mo hinh 07:56 12/11: keo assigned -> executor TU LAM bang Gemini + nop
+# bai qua duong rieng. Outbound van OFF trong toan bo khoi nay; moi be
+# mat mang/shell deu la mock.
+set_outbound(False)
+
+EXEC_STATE = {
+    "plan": ("Ke hoach: 1) Tao/sua module export CSV dung yeu cau issue. "
+             "2) Kiem chung bang npm test cua repo.\n"
+             "FILE: src/export.py - module export CSV\n"),
+    "produce": ("=== FILE: src/export.py ===\n"
+                "import csv\nimport io\n\n\ndef export_csv(rows):\n"
+                "    buf = io.StringIO()\n"
+                "    w = csv.writer(buf)\n"
+                "    for r in rows:\n"
+                "        w.writerow(r)\n"
+                "    return buf.getvalue()\n"
+                "=== END FILE ===\n"),
+    "doc": ("# CSV export - huong dan\n\nTai lieu huong dan su dung tinh nang "
+            "export CSV theo dung yeu cau issue.\n"),
+}
+EXEC_STATE["fix"] = EXEC_STATE["produce"]
+
+
+def fake_gemini_exec(pool, ps, prompt):
+    if "LAP KE HOACH" in prompt:
+        return EXEC_STATE["plan"], "gemini-mock"
+    if "SUA LOI KIEM CHUNG" in prompt:
+        return EXEC_STATE["fix"], "gemini-mock"
+    if "TAI LIEU SAN PHAM" in prompt:
+        return EXEC_STATE["doc"], "gemini-mock"
+    return EXEC_STATE["produce"], "gemini-mock"
+
+
+SHELL_CALLS = []
+SHELL_BEHAVIOR = {"checks_fail_times": 0}
+
+
+def fake_run_shell(args, cwd=None, timeout=180):
+    SHELL_CALLS.append(list(args))
+    if args[:2] == ["git", "clone"]:
+        dest = args[-1]
+        os.makedirs(os.path.join(dest, "src"), exist_ok=True)
+        with open(os.path.join(dest, "package.json"), "w", encoding="utf-8") as f:
+            json.dump({"scripts": {"test": "node test.js"}}, f)
+        with open(os.path.join(dest, "src", "export.py"), "w", encoding="utf-8") as f:
+            f.write("# ban cu\n")
+        return 0, "Cloning into repo...", ""
+    if args[:2] == ["find", "."]:
+        return 0, "./package.json\n./src/export.py\n", ""
+    if args and args[0] == "npm":
+        if SHELL_BEHAVIOR["checks_fail_times"] > 0:
+            SHELL_BEHAVIOR["checks_fail_times"] -= 1
+            return 1, "", "AssertionError: export broken"
+        return 0, "all tests passed", ""
+    return 0, "", ""
+
+
+_orig_gemini_pool = doer.gemini_generate_pool
+_orig_run_shell = doer.run_shell
+_orig_make_apply = doer.make_apply
+_orig_resend_apply = doer.resend_apply
+APPLY_SPY = []
+doer.make_apply = lambda *a, **k: APPLY_SPY.append("make_apply")
+doer.resend_apply = lambda *a, **k: APPLY_SPY.append("resend_apply")
+doer.gemini_generate_pool = fake_gemini_exec
+doer.run_shell = fake_run_shell
+REPOS[("Luando-tester", "data-tools")] = {"default_branch": "main",
+                                          "created_at": "2020-01-01T00:00:00Z"}
+
+# (x1) Keo code assigned -> executor lam xong (TASK.md + file + RESULT.md)
+# + nop PR qua duong rieng; 0 comment dang don; khong goi make_apply/
+# resend_apply; dung 1 tin exec_done; chay lai khong chay lai (idempotent)
+X1_KEY = ("acme", "data-tools", 41)
+ISSUES[X1_KEY] = raw_issue(
+    "Implement CSV export for the reports module ($250)",
+    "Please implement a CSV export function for the reports module. "
+    "Acceptance criteria: export_csv(rows) returns CSV text; the repo test "
+    "suite passes. Reward $250 USD via Opire.",
+    labels=["bounty"])
+COMMENTS[X1_KEY] = []
+e_x1 = entry_for(*X1_KEY, ISSUES[X1_KEY]["title"], budget=250.0, status="assigned")
+e_x1["assigned_at"] = doer.now_iso()
+POSTS.clear()
+tg0 = len(TG)
+doer.run_executor(e_x1, POOL, POOL_STATE)
+new_tg = TG[tg0:]
+_x1_files = e_x1.get("files") or []
+_x1_result = ""
+for f in _x1_files:
+    if f.endswith("RESULT.md"):
+        with open(os.path.join(TMP, f), encoding="utf-8") as _f:
+            _x1_result = _f.read()
+check("(x) executor: keo code assigned -> lam xong + nop PR (submitted)",
+      e_x1.get("status") == "submitted" and e_x1.get("submitted_via") == "pr"
+      and "pull/9" in (e_x1.get("pr_url") or ""), (e_x1.get("status"), e_x1.get("pr_url")))
+check("(x) executor: TASK.md + RESULT.md + file san pham nam trong deliverables",
+      any(f.endswith("TASK.md") for f in _x1_files)
+      and any(f.endswith("RESULT.md") for f in _x1_files)
+      and e_x1.get("exec_files") == ["src/export.py"]
+      and os.path.exists(os.path.join(TMP, "deliverables", e_x1["slug"], "files", "src", "export.py")),
+      _x1_files)
+check("(x) executor: RESULT.md ghi viec da lam + kiem chung PASS",
+      "src/export.py" in _x1_result and "PASS" in _x1_result, _x1_result[:200])
+_pr_posts = [o for p, o in POSTS if p.endswith("/pulls")]
+check("(x) executor: than PR chi mo ta viec that + dinh danh cong cu tu dong",
+      len(_pr_posts) == 1 and "automated tool" in (_pr_posts[0] or {}).get("body", "")
+      and "experienced" not in (_pr_posts[0] or {}).get("body", "").lower(),
+      _pr_posts)
+check("(x) executor: 0 comment dang don/ung tuyen duoc gui",
+      not any(re.search(r"/issues/\d+/comments$", p) for p, _o in POSTS), POSTS)
+check("(x) executor: khong bao gio goi make_apply/resend_apply",
+      APPLY_SPY == [], APPLY_SPY)
+check("(x) executor: dung 1 tin Telegram exec_done (DA NOP BAI)",
+      len(new_tg) == 1 and "DA NOP BAI" in new_tg[0], new_tg)
+check("(x) executor: chay lai lan 2 -> khong chay lai (idempotent)",
+      doer.run_executor(e_x1, POOL, POOL_STATE) is False
+      and e_x1.get("status") == "submitted", e_x1.get("status"))
+
+# (x2) Cong nop bai rieng: TU CHOI khi khong phai assigned / chua co san
+# pham executor - 0 POST, khong doi trang thai
+e_x2a = entry_for("acme", "data-tools", 43, "Implement CSV export ($250)",
+                  budget=250.0, status="tu_xu")
+e_x2a["exec_done_at"] = doer.now_iso()
+e_x2a["exec_result"] = "done"
+e_x2a["files"] = ["deliverables/%s/RESULT.md" % e_x2a["slug"]]
+POSTS.clear()
+r_x2a = doer.submit_executor_result(e_x2a)
+check("(x) cong nop: entry tu_xu (khong phai assigned) -> TU CHOI, 0 POST, giu trang thai",
+      r_x2a is False and len(POSTS) == 0 and e_x2a.get("status") == "tu_xu",
+      (r_x2a, POSTS, e_x2a.get("status")))
+e_x2b = entry_for("acme", "data-tools", 44, "Implement CSV export ($250)",
+                  budget=250.0, status="assigned")
+POSTS.clear()
+r_x2b = doer.submit_executor_result(e_x2b)
+check("(x) cong nop: assigned nhung chua co san pham executor -> TU CHOI, 0 POST",
+      r_x2b is False and len(POSTS) == 0 and e_x2b.get("status") == "assigned",
+      (r_x2b, POSTS, e_x2b.get("status")))
+
+# (x3) Cham tran luot Gemini (kiem chung fail lien tuc) -> exec_kẹt + giu
+# san pham do dang + dung 1 incident, 0 comment
+X3_KEY = ("acme", "data-tools", 45)
+ISSUES[X3_KEY] = raw_issue("Implement CSV export for the reports module ($250)",
+                           ISSUES[X1_KEY]["body"], labels=["bounty"])
+COMMENTS[X3_KEY] = []
+e_x3 = entry_for(*X3_KEY, ISSUES[X3_KEY]["title"], budget=250.0, status="assigned")
+SHELL_BEHAVIOR["checks_fail_times"] = 99
+_old_cap = doer.EXEC_MAX_GEMINI_CALLS
+doer.EXEC_MAX_GEMINI_CALLS = 4
+POSTS.clear()
+tg0 = len(TG)
+doer.run_executor(e_x3, POOL, POOL_STATE)
+doer.EXEC_MAX_GEMINI_CALLS = _old_cap
+SHELL_BEHAVIOR["checks_fail_times"] = 0
+new_tg = TG[tg0:]
+_x3_result = ""
+for f in e_x3.get("files") or []:
+    if f.endswith("RESULT.md"):
+        with open(os.path.join(TMP, f), encoding="utf-8") as _f:
+            _x3_result = _f.read()
+check("(x) cham tran Gemini -> exec_kẹt + RESULT.md ghi ly do tran",
+      e_x3.get("status") == "exec_kẹt" and "vuot tran" in _x3_result,
+      (e_x3.get("status"), _x3_result[:150]))
+check("(x) cham tran: san pham do dang van duoc giu lai",
+      os.path.exists(os.path.join(TMP, "deliverables", e_x3["slug"], "files", "src", "export.py")),
+      e_x3.get("files"))
+check("(x) cham tran: dung 1 tin incident, 0 comment duoc gui",
+      len(new_tg) == 1 and "BI KET" in new_tg[0]
+      and not any(re.search(r"/issues/\d+/comments$", p) for p, _o in POSTS),
+      (new_tg, POSTS))
+
+# (x4) Keo viet MO HO (khong tieu chi nghiem thu ro rang) -> van lam theo
+# doc hieu den tu, RESULT.md ghi gia dinh; nop bang 1 comment chua san pham
+X4_KEY = ("acme", "data-tools", 46)
+ISSUES[X4_KEY] = raw_issue("Write something about the CSV export ($100)",
+                           "Please write something about our CSV export feature. "
+                           "Bounty $100 USDC via Opire.", labels=["bounty"])
+COMMENTS[X4_KEY] = []
+e_x4 = entry_for(*X4_KEY, ISSUES[X4_KEY]["title"], budget=100.0, status="assigned")
+e_x4["type"] = "viet"
+POSTS.clear()
+tg0 = len(TG)
+doer.run_executor(e_x4, POOL, POOL_STATE)
+new_tg = TG[tg0:]
+_x4_result = ""
+for f in e_x4.get("files") or []:
+    if f.endswith("RESULT.md"):
+        with open(os.path.join(TMP, f), encoding="utf-8") as _f:
+            _x4_result = _f.read()
+_cmt_posts = [o for p, o in POSTS if re.search(r"/issues/\d+/comments$", p)]
+_cmt_body = (_cmt_posts[0] or {}).get("body", "") if _cmt_posts else ""
+check("(x) keo viet mo ho: lam theo doc hieu den tu -> submitted qua comment",
+      e_x4.get("status") == "submitted" and e_x4.get("submitted_via") == "comment"
+      and len(_cmt_posts) == 1, (e_x4.get("status"), POSTS))
+check("(x) keo viet mo ho: RESULT.md ghi gia dinh vi thieu tieu chi nghiem thu",
+      "Gia dinh" in _x4_result and "DOC HIEU DEN TU" in _x4_result, _x4_result[:300])
+check("(x) comment nop bai: dinh danh cong cu tu dong, khong nhan kinh nghiem",
+      "automated tool" in _cmt_body and "independent researcher" not in _cmt_body
+      and "experienced" not in _cmt_body.lower(), _cmt_body[:160])
+check("(x) keo viet mo ho: dung 1 tin exec_done",
+      len(new_tg) == 1 and "DA NOP BAI" in new_tg[0], new_tg)
+
+# (x6) TRIGGER 2: maintainer comment trao task cu the tren keo tu_xu ->
+# assigned (ghi exec_handover) + 1 tin DUOC GIAO KEO; vong ke executor
+# tu lam + nop PR
+X6_KEY = ("acme", "data-tools", 47)
+ISSUES[X6_KEY] = raw_issue("Implement CSV export for the reports module ($250)",
+                           ISSUES[X1_KEY]["body"], labels=["bounty"])
+COMMENTS[X6_KEY] = [{"user": {"login": "bossdev"}, "author_association": "OWNER",
+                     "id": 900,
+                     "html_url": "https://github.com/acme/data-tools/issues/47#issuecomment-900",
+                     "body": "@Luando-tester please implement the CSV export described above."}]
+x6_url = "https://github.com/%s/%s/issues/%d" % X6_KEY
+e_x6 = entry_for(*X6_KEY, ISSUES[X6_KEY]["title"], budget=250.0, status="tu_xu")
+e_x6["files"] = ["deliverables/%s/APPLY.md" % e_x6["slug"]]
+st_x6 = {x6_url: e_x6}
+POSTS.clear()
+tg0 = len(TG)
+doer.process_cycle(st_x6, POOL, POOL_STATE)
+tg1 = TG[tg0:]
+check("(x) handover: comment maintainer trao task -> assigned + exec_handover + 1 tin DUOC GIAO KEO",
+      e_x6.get("status") == "assigned" and bool((e_x6.get("exec_handover") or {}).get("html_url"))
+      and len(tg1) == 1 and "DUOC GIAO KEO" in tg1[0],
+      (e_x6.get("status"), e_x6.get("exec_handover"), tg1))
+doer.process_cycle(st_x6, POOL, POOL_STATE)
+check("(x) handover: vong ke executor tu lam xong + nop PR",
+      e_x6.get("status") == "submitted" and e_x6.get("submitted_via") == "pr",
+      (e_x6.get("status"), e_x6.get("exec_result")))
+
+# (x7) Pool Gemini can/hong -> exec_kẹt + incident noi ro het key, 0 POST
+X7_KEY = ("acme", "data-tools", 48)
+ISSUES[X7_KEY] = raw_issue("Implement CSV export for the reports module ($250)",
+                           ISSUES[X1_KEY]["body"], labels=["bounty"])
+COMMENTS[X7_KEY] = []
+e_x7 = entry_for(*X7_KEY, ISSUES[X7_KEY]["title"], budget=250.0, status="assigned")
+doer.gemini_generate_pool = lambda pool, ps, prompt: ("", "template (tat ca key Gemini deu fail: het quota)")
+POSTS.clear()
+tg0 = len(TG)
+doer.run_executor(e_x7, POOL, POOL_STATE)
+new_tg = TG[tg0:]
+check("(x) pool Gemini can -> exec_kẹt + incident noi ro het key, 0 POST",
+      e_x7.get("status") == "exec_kẹt" and len(new_tg) == 1
+      and "POOL GEMINI DA CAN" in new_tg[0] and len(POSTS) == 0,
+      (e_x7.get("status"), new_tg, POSTS))
+
+# Tra lai mock goc cho cac khoi sau
+doer.gemini_generate_pool = _orig_gemini_pool
+doer.run_shell = _orig_run_shell
+doer.make_apply = _orig_make_apply
+doer.resend_apply = _orig_resend_apply
 
 # ============================================================ single-flight
 CALLS = []
