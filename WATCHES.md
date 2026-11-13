@@ -1,16 +1,16 @@
 # Pepper Hunter WATCHES - 7 watch kiem tien (GitHub Actions)
 
-Cap nhat: 2026-11-13T20:31:48+07:00 (VN) | Vong gan nhat: 2026-11-13T20:31:48+07:00 | Su kien vong nay: 1
+Cap nhat: 2026-11-13T20:47:44+07:00 (VN) | Vong gan nhat: 2026-11-13T20:47:44+07:00 | Su kien vong nay: 0
 
 | Watch | Trang thai | Lan kiem gan nhat | Chi tiet |
 |---|---|---|---|
-| Synmerco | LIVE | 2026-11-13T20:31:33+07:00 | Dang canh 2 intent mo, 0 bid cua minh dang mo, 2 cho duyet. Readiness LIVE. |
-| CC0 storefront | CHO-CREDENTIAL | 2026-11-13T20:31:34+07:00 | Chua co secret CC0_CF_API_TOKEN (token Cloudflare doc KV cc0-jobs, account cua Luân) - chua doc duoc don CC0. |
-| MoltJobs | LIVE | 2026-11-13T20:31:34+07:00 | Agent ACTIVE; 16 job mo; bid free thang 2026-11: 0/10. Stats: settled $42.3, fundedEmployers 1. |
-| Owockibot | LIVE | 2026-11-13T20:31:36+07:00 | 0 bounty dang mo; moi vong nay: 0; claim dang giu: khong. |
-| Fiverr (qua Gmail) | CHO-CONSENT | 2026-11-13T20:31:37+07:00 | Ban goc doc hoat dong Fiverr qua Gmail (mail thong bao seller) - can Luân consent Gmail OAuth 1 lan (giai doan 2). Chua port phan doc mail. |
-| Boards (Superteam/Taskmarket/HYRVE/Frantic) | LIVE | 2026-11-13T20:31:37+07:00 | Superteam seen 19 listing (moi vong nay 1); RaptorX: winners=False, 402 bai nop; Taskmarket seen 148; HYRVE total 0; Frantic open 2, moved $2644. Loi nguon: khong |
-| Seller inbox (Gmail) | CHO-CONSENT | 2026-11-13T20:31:44+07:00 | Phu thuoc Gmail OAuth (chua consent) - KHONG port phan doc mail. Cho Luân consent 1 lan (giai doan 2) de doc mail Gumroad/Codester/Wirestock/Adobe/Upwork/Dreamstime. |
+| Synmerco | LIVE | 2026-11-13T20:47:33+07:00 | Dang canh 1 intent mo, 0 bid cua minh dang mo, 1 cho duyet. Readiness LIVE. |
+| CC0 storefront | CHO-CREDENTIAL | 2026-11-13T20:47:34+07:00 | Chua co secret CC0_CF_API_TOKEN (token Cloudflare doc KV cc0-jobs, account cua Luân) - chua doc duoc don CC0. |
+| MoltJobs | LIVE | 2026-11-13T20:47:34+07:00 | Agent ACTIVE; 16 job mo; bid free thang 2026-11: 0/10. Stats: settled $42.3, fundedEmployers 1. |
+| Owockibot | LIVE | 2026-11-13T20:47:36+07:00 | 0 bounty dang mo; moi vong nay: 0; claim dang giu: khong. |
+| Fiverr (qua Gmail) | CHO-CONSENT | 2026-11-13T20:47:37+07:00 | Ban goc doc hoat dong Fiverr qua Gmail (mail thong bao seller) - can Luân consent Gmail OAuth 1 lan (giai doan 2). Chua port phan doc mail. |
+| Boards (Superteam/Taskmarket/HYRVE/Frantic) | LIVE | 2026-11-13T20:47:37+07:00 | Superteam seen 19 listing (moi vong nay 0); RaptorX: winners=False, 402 bai nop; Taskmarket seen 148; HYRVE total 0; Frantic open 2, moved $2646. Loi nguon: khong |
+| Seller inbox (Gmail) | CHO-CONSENT | 2026-11-13T20:47:44+07:00 | Phu thuoc Gmail OAuth (chua consent) - KHONG port phan doc mail. Cho Luân consent 1 lan (giai doan 2) de doc mail Gumroad/Codester/Wirestock/Adobe/Upwork/Dreamstime. |
 
 Ghi chu:
 - Watch cham tien (bid/claim) chi hanh dong khi credential tuong ung da o trong repo secrets; thieu credential thi watch chay che do cho + ghi ro o cot Chi tiet.
