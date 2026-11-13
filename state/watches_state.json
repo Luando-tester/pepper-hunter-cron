@@ -2,7 +2,7 @@
  "meta": {
   "created": "2026-11-10T20:34:15+07:00",
   "launch_notified": true,
-  "last_cycle": "2026-11-13T07:45:38+07:00",
+  "last_cycle": "2026-11-13T08:00:41+07:00",
   "last_commit": null
  },
  "synmerco": {
@@ -69,6 +69,7 @@
    "6be9d30b-6dc7-4a41-b594-8be8ce596e00",
    "6ca5b768-5df2-4585-9d11-ebb0406a3d9c",
    "6cc27413-d57e-4f20-a768-db56c34de6be",
+   "6d850a19-de2b-4263-98c7-3945001139bd",
    "73a78c5d-0a18-4197-9725-10059f252706",
    "7bac5890-6afb-47dc-9bf1-ba60bec990ae",
    "7caf216c-f4ab-4824-afe8-28a759645b15",
@@ -149,51 +150,9 @@
   ],
   "my_bids": {},
   "pending": {
-   "e4c81f25-a3cb-4e0e-97d1-9ecffeabc569": {
-    "reported_at": 1794529107.892134,
-    "title": "e4c81f25-a3cb-4e0e-97d1-9ecffeabc569",
-    "budget_cents": null,
-    "reason": "data"
-   },
-   "ba9be70d-8b3e-48d3-9941-f4b0d518ed28": {
-    "reported_at": 1794529108.021432,
-    "title": "ba9be70d-8b3e-48d3-9941-f4b0d518ed28",
-    "budget_cents": null,
-    "reason": "research"
-   },
-   "677040a9-7dab-4f1e-b752-0815a906a5ff": {
-    "reported_at": 1794529168.2293289,
-    "title": "677040a9-7dab-4f1e-b752-0815a906a5ff",
-    "budget_cents": null,
-    "reason": "data"
-   },
-   "a5357356-eb8f-4da1-95b1-e1717a8a4107": {
-    "reported_at": 1794529168.3742964,
-    "title": "a5357356-eb8f-4da1-95b1-e1717a8a4107",
-    "budget_cents": null,
-    "reason": "research"
-   },
-   "5906808e-847a-495d-9fc6-7654a3b4a3f3": {
-    "reported_at": 1794529168.5342615,
-    "title": "5906808e-847a-495d-9fc6-7654a3b4a3f3",
-    "budget_cents": null,
-    "reason": "data"
-   },
-   "c8deada2-197b-4920-9527-6c5641b8115c": {
-    "reported_at": 1794529168.6869972,
-    "title": "c8deada2-197b-4920-9527-6c5641b8115c",
-    "budget_cents": null,
-    "reason": "data"
-   },
-   "aad5b772-23d6-4eb1-be76-8f50fb60c62a": {
-    "reported_at": 1794529708.0379996,
-    "title": "aad5b772-23d6-4eb1-be76-8f50fb60c62a",
-    "budget_cents": null,
-    "reason": "research"
-   },
-   "e94ba9d2-6ea6-4e1c-bfb4-887ca914f013": {
-    "reported_at": 1794529768.035118,
-    "title": "e94ba9d2-6ea6-4e1c-bfb4-887ca914f013",
+   "6d850a19-de2b-4263-98c7-3945001139bd": {
+    "reported_at": 1794531628.044835,
+    "title": "6d850a19-de2b-4263-98c7-3945001139bd",
     "budget_cents": null,
     "reason": "research"
    }
@@ -206,8 +165,8 @@
   },
   "readiness_alerted": false,
   "underbid_reject_alerted": {},
-  "last_check": "2026-11-13T07:45:27+07:00",
-  "detail": "Dang canh 8 intent mo, 0 bid cua minh dang mo, 8 cho duyet. Readiness LIVE."
+  "last_check": "2026-11-13T08:00:27+07:00",
+  "detail": "Dang canh 1 intent mo, 0 bid cua minh dang mo, 1 cho duyet. Readiness LIVE."
  },
  "cc0": {
   "status": "CHO-CREDENTIAL",
@@ -215,7 +174,7 @@
   "reported_paid": [],
   "reported_test": [],
   "coverage_alerted_for": null,
-  "last_check": "2026-11-13T07:45:28+07:00",
+  "last_check": "2026-11-13T08:00:28+07:00",
   "detail": "Chua co secret CC0_CF_API_TOKEN (token Cloudflare doc KV cc0-jobs, account cua Luân) - chua doc duoc don CC0."
  },
  "moltjobs": {
@@ -249,7 +208,7 @@
   },
   "agent_status": "ACTIVE",
   "seen_assignments": [],
-  "last_check": "2026-11-13T07:45:28+07:00",
+  "last_check": "2026-11-13T08:00:28+07:00",
   "detail": "Agent ACTIVE; 16 job mo; bid free thang 2026-11: 0/10. Stats: settled $42.3, fundedEmployers 1."
  },
  "owockibot": {
@@ -258,17 +217,17 @@
   "active_claim": null,
   "claims": [],
   "queued": [],
-  "last_check": "2026-11-13T07:45:29+07:00",
+  "last_check": "2026-11-13T08:00:30+07:00",
   "detail": "0 bounty dang mo; moi vong nay: 0; claim dang giu: khong."
  },
  "fiverr": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-13T07:45:31+07:00",
+  "last_check": "2026-11-13T08:00:31+07:00",
   "detail": "Ban goc doc hoat dong Fiverr qua Gmail (mail thong bao seller) - can Luân consent Gmail OAuth 1 lan (giai doan 2). Chua port phan doc mail."
  },
  "boards": {
   "status": "LIVE",
-  "last_check": "2026-11-13T07:45:31+07:00",
+  "last_check": "2026-11-13T08:00:31+07:00",
   "detail": "Superteam seen 16 listing (moi vong nay 0); RaptorX: winners=False, 402 bai nop; Taskmarket seen 109; HYRVE total 0; Frantic open 2, moved $2546. Loi nguon: khong",
   "superteam_seen": [
    "11de63d7-6dfb-444c-8587-3d73037a4ede",
@@ -435,7 +394,7 @@
  },
  "seller_inbox": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-13T07:45:38+07:00",
+  "last_check": "2026-11-13T08:00:37+07:00",
   "detail": "Phu thuoc Gmail OAuth (chua consent) - KHONG port phan doc mail. Cho Luân consent 1 lan (giai doan 2) de doc mail Gumroad/Codester/Wirestock/Adobe/Upwork/Dreamstime."
  }
 }
