@@ -2,7 +2,7 @@
  "meta": {
   "created": "2026-11-10T20:34:15+07:00",
   "launch_notified": true,
-  "last_cycle": "2026-11-18T04:47:55+07:00",
+  "last_cycle": "2026-11-18T04:54:59+07:00",
   "last_commit": null
  },
  "synmerco": {
@@ -134,6 +134,7 @@
    "86c54f47-5377-4eae-8d23-144f8fea2227",
    "86dd0059-7634-4908-af8d-ee21d44966a7",
    "8890a6ff-a417-4721-926d-555a78195c20",
+   "8a4a52a3-5aea-4de8-9a1f-3175b7fea9a6",
    "8aa268f8-b2cd-4d37-8cab-424bd32eca47",
    "8b0b92c3-6591-42ac-9898-2742f96620cc",
    "8bb33607-ee19-452a-bd88-3b930935e9d2",
@@ -275,6 +276,12 @@
     "title": "2c904503-eebd-4950-81e8-3e75c35dae40",
     "budget_cents": null,
     "reason": "research"
+   },
+   "8a4a52a3-5aea-4de8-9a1f-3175b7fea9a6": {
+    "reported_at": 1794952484.902098,
+    "title": "8a4a52a3-5aea-4de8-9a1f-3175b7fea9a6",
+    "budget_cents": null,
+    "reason": "research"
    }
   },
   "watch_ids": {
@@ -285,8 +292,8 @@
   },
   "readiness_alerted": false,
   "underbid_reject_alerted": {},
-  "last_check": "2026-11-18T04:47:44+07:00",
-  "detail": "Dang canh 4 intent mo, 0 bid cua minh dang mo, 4 cho duyet. Readiness LIVE."
+  "last_check": "2026-11-18T04:54:44+07:00",
+  "detail": "Dang canh 5 intent mo, 0 bid cua minh dang mo, 5 cho duyet. Readiness LIVE."
  },
  "cc0": {
   "status": "CHO-CREDENTIAL",
@@ -294,7 +301,7 @@
   "reported_paid": [],
   "reported_test": [],
   "coverage_alerted_for": null,
-  "last_check": "2026-11-18T04:47:45+07:00",
+  "last_check": "2026-11-18T04:54:45+07:00",
   "detail": "Chua co secret CC0_CF_API_TOKEN (token Cloudflare doc KV cc0-jobs, account cua Luân) - chua doc duoc don CC0."
  },
  "moltjobs": {
@@ -330,7 +337,7 @@
   },
   "agent_status": "ACTIVE",
   "seen_assignments": [],
-  "last_check": "2026-11-18T04:47:45+07:00",
+  "last_check": "2026-11-18T04:54:45+07:00",
   "detail": "Agent ACTIVE; 18 job mo; bid free thang 2026-11: 0/10. Stats: settled $42.3, fundedEmployers 1."
  },
  "owockibot": {
@@ -339,17 +346,17 @@
   "active_claim": null,
   "claims": [],
   "queued": [],
-  "last_check": "2026-11-18T04:47:47+07:00",
+  "last_check": "2026-11-18T04:54:47+07:00",
   "detail": "0 bounty dang mo; moi vong nay: 0; claim dang giu: khong."
  },
  "fiverr": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-18T04:47:48+07:00",
+  "last_check": "2026-11-18T04:54:49+07:00",
   "detail": "Ban goc doc hoat dong Fiverr qua Gmail (mail thong bao seller) - can Luân consent Gmail OAuth 1 lan (giai doan 2). Chua port phan doc mail."
  },
  "boards": {
   "status": "LIVE",
-  "last_check": "2026-11-18T04:47:48+07:00",
+  "last_check": "2026-11-18T04:54:49+07:00",
   "detail": "Superteam seen 21 listing (moi vong nay 0); RaptorX: winners=False, 402 bai nop; Taskmarket seen 204; HYRVE total 0; Frantic open 1, moved $2521. Loi nguon: khong",
   "superteam_seen": [
    "11de63d7-6dfb-444c-8587-3d73037a4ede",
@@ -618,7 +625,7 @@
  },
  "seller_inbox": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-18T04:47:55+07:00",
+  "last_check": "2026-11-18T04:54:55+07:00",
   "detail": "Phu thuoc Gmail OAuth (chua consent) - KHONG port phan doc mail. Cho Luân consent 1 lan (giai doan 2) de doc mail Gumroad/Codester/Wirestock/Adobe/Upwork/Dreamstime."
  }
 }
