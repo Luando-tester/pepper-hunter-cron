@@ -2,7 +2,7 @@
  "meta": {
   "created": "2026-11-10T20:34:15+07:00",
   "launch_notified": true,
-  "last_cycle": "2026-11-17T23:25:08+07:00",
+  "last_cycle": "2026-11-17T23:41:06+07:00",
   "last_commit": null
  },
  "synmerco": {
@@ -224,56 +224,7 @@
    "unknown-korean-mcp-blog-d9be96a8d16a"
   ],
   "my_bids": {},
-  "pending": {
-   "beaead34-0cfd-40eb-ba4a-1293f5985ff9": {
-    "reported_at": 1794931315.3064709,
-    "title": "beaead34-0cfd-40eb-ba4a-1293f5985ff9",
-    "budget_cents": null,
-    "reason": "research"
-   },
-   "e857b400-9b3d-4306-a356-0f46d552f21b": {
-    "reported_at": 1794931435.2392955,
-    "title": "e857b400-9b3d-4306-a356-0f46d552f21b",
-    "budget_cents": null,
-    "reason": "research"
-   },
-   "ef07ec6e-ec5b-49cd-9e64-e7fb5b134269": {
-    "reported_at": 1794931435.6799705,
-    "title": "ef07ec6e-ec5b-49cd-9e64-e7fb5b134269",
-    "budget_cents": null,
-    "reason": "research"
-   },
-   "8aa268f8-b2cd-4d37-8cab-424bd32eca47": {
-    "reported_at": 1794931500.2295728,
-    "title": "8aa268f8-b2cd-4d37-8cab-424bd32eca47",
-    "budget_cents": null,
-    "reason": "research"
-   },
-   "d88b5402-dfee-415d-bdc8-a6bdf9a2beb9": {
-    "reported_at": 1794931500.399066,
-    "title": "d88b5402-dfee-415d-bdc8-a6bdf9a2beb9",
-    "budget_cents": null,
-    "reason": "research"
-   },
-   "915d4e4a-50f6-4933-a182-ee9157df0030": {
-    "reported_at": 1794931500.549551,
-    "title": "915d4e4a-50f6-4933-a182-ee9157df0030",
-    "budget_cents": null,
-    "reason": "data"
-   },
-   "b3b07ea6-cac0-4dda-9dc9-a63ec5e6392d": {
-    "reported_at": 1794931556.4591231,
-    "title": "b3b07ea6-cac0-4dda-9dc9-a63ec5e6392d",
-    "budget_cents": null,
-    "reason": "research"
-   },
-   "318940b1-aba6-46ed-a32b-959324a415cb": {
-    "reported_at": 1794931735.357229,
-    "title": "318940b1-aba6-46ed-a32b-959324a415cb",
-    "budget_cents": null,
-    "reason": "research"
-   }
-  },
+  "pending": {},
   "watch_ids": {
    "353923b1-4b46-4e5a-9e8d-725045acb113": {
     "status": "matched",
@@ -282,8 +233,8 @@
   },
   "readiness_alerted": false,
   "underbid_reject_alerted": {},
-  "last_check": "2026-11-17T23:24:54+07:00",
-  "detail": "Dang canh 8 intent mo, 0 bid cua minh dang mo, 8 cho duyet. Readiness LIVE."
+  "last_check": "2026-11-17T23:40:54+07:00",
+  "detail": "Dang canh 0 intent mo, 0 bid cua minh dang mo, 0 cho duyet. Readiness LIVE."
  },
  "cc0": {
   "status": "CHO-CREDENTIAL",
@@ -291,7 +242,7 @@
   "reported_paid": [],
   "reported_test": [],
   "coverage_alerted_for": null,
-  "last_check": "2026-11-17T23:24:55+07:00",
+  "last_check": "2026-11-17T23:40:55+07:00",
   "detail": "Chua co secret CC0_CF_API_TOKEN (token Cloudflare doc KV cc0-jobs, account cua Luân) - chua doc duoc don CC0."
  },
  "moltjobs": {
@@ -327,7 +278,7 @@
   },
   "agent_status": "ACTIVE",
   "seen_assignments": [],
-  "last_check": "2026-11-17T23:24:55+07:00",
+  "last_check": "2026-11-17T23:40:55+07:00",
   "detail": "Agent ACTIVE; 18 job mo; bid free thang 2026-11: 0/10. Stats: settled $42.3, fundedEmployers 1."
  },
  "owockibot": {
@@ -336,17 +287,17 @@
   "active_claim": null,
   "claims": [],
   "queued": [],
-  "last_check": "2026-11-17T23:24:57+07:00",
+  "last_check": "2026-11-17T23:40:57+07:00",
   "detail": "0 bounty dang mo; moi vong nay: 0; claim dang giu: khong."
  },
  "fiverr": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-17T23:24:59+07:00",
+  "last_check": "2026-11-17T23:40:59+07:00",
   "detail": "Ban goc doc hoat dong Fiverr qua Gmail (mail thong bao seller) - can Luân consent Gmail OAuth 1 lan (giai doan 2). Chua port phan doc mail."
  },
  "boards": {
   "status": "LIVE",
-  "last_check": "2026-11-17T23:24:59+07:00",
+  "last_check": "2026-11-17T23:40:59+07:00",
   "detail": "Superteam seen 21 listing (moi vong nay 0); RaptorX: winners=False, 402 bai nop; Taskmarket seen 188; HYRVE total 0; Frantic open 1, moved $2521. Loi nguon: khong",
   "superteam_seen": [
    "11de63d7-6dfb-444c-8587-3d73037a4ede",
@@ -599,7 +550,7 @@
  },
  "seller_inbox": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-17T23:25:08+07:00",
+  "last_check": "2026-11-17T23:41:06+07:00",
   "detail": "Phu thuoc Gmail OAuth (chua consent) - KHONG port phan doc mail. Cho Luân consent 1 lan (giai doan 2) de doc mail Gumroad/Codester/Wirestock/Adobe/Upwork/Dreamstime."
  }
 }
