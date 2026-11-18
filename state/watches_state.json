@@ -2,7 +2,7 @@
  "meta": {
   "created": "2026-11-10T20:34:15+07:00",
   "launch_notified": true,
-  "last_cycle": "2026-11-18T21:24:01+07:00",
+  "last_cycle": "2026-11-18T22:00:27+07:00",
   "last_commit": null
  },
  "synmerco": {
@@ -201,8 +201,6 @@
    "c840958e-7d4c-48ae-8f09-80a639600e9b",
    "c8deada2-197b-4920-9527-6c5641b8115c",
    "c9aee346-7c5b-43c8-b060-21bc94e7dda4",
-   "ca0588ae-a162-484f-a563-9d3dc9806d63",
-   "cb7da4c1-eaea-4d7d-91c6-3fef68936098",
    "cd545c16-06af-4f6e-9bcf-a73ce4598540",
    "cd5a41d5-6b0b-48a5-8f20-6558bda2e7ab",
    "ce09dba7-e138-498b-bb42-53e2e2d2a1bc",
@@ -210,7 +208,6 @@
    "d1a3495f-4b24-4795-829f-4337de897c9b",
    "d3fc4421-c47c-4656-a160-3cfde0eec45e",
    "d486d523-3609-4d68-bc74-d7f6394dfb58",
-   "d5227f41-8bdd-42d2-a710-9372bf3b3935",
    "d5b2e73a-1907-48d7-80c3-cb758ad02b33",
    "d5bc3d2d-2ccf-4d90-a6d5-a0cdf39fd022",
    "d68fee52-8086-4438-bb15-0ffb09481174",
@@ -246,6 +243,7 @@
    "ef07ec6e-ec5b-49cd-9e64-e7fb5b134269",
    "efae4516-edac-4b03-ae2e-72e8b669e6fd",
    "f0279172-d79d-4cc2-8f3d-059e7deec27e",
+   "f2477112-ad8c-424b-b4de-e033a45a907a",
    "f2596121-4a79-489f-b502-d603cceb76e5",
    "f305e136-e756-4777-a278-65606ffc3a4b",
    "f4a4babe-1e23-4467-af35-bb2debdd53ac",
@@ -258,11 +256,17 @@
    "fab34227-eaa3-4fd0-b999-076a7936332a",
    "fc3310d8-9012-4d97-a04b-2c2bad2ca16c",
    "fd957a55-d20c-4c48-852d-61aab74f5a82",
-   "fee80833-b2ff-45f4-a2aa-4b0ccfa56298",
    "unknown-korean-mcp-blog-d9be96a8d16a"
   ],
   "my_bids": {},
-  "pending": {},
+  "pending": {
+   "f2477112-ad8c-424b-b4de-e033a45a907a": {
+    "reported_at": 1795014012.144115,
+    "title": "f2477112-ad8c-424b-b4de-e033a45a907a",
+    "budget_cents": null,
+    "reason": "research"
+   }
+  },
   "watch_ids": {
    "353923b1-4b46-4e5a-9e8d-725045acb113": {
     "status": "matched",
@@ -271,8 +275,8 @@
   },
   "readiness_alerted": false,
   "underbid_reject_alerted": {},
-  "last_check": "2026-11-18T21:23:50+07:00",
-  "detail": "Dang canh 0 intent mo, 0 bid cua minh dang mo, 0 cho duyet. Readiness LIVE."
+  "last_check": "2026-11-18T22:00:10+07:00",
+  "detail": "Dang canh 1 intent mo, 0 bid cua minh dang mo, 1 cho duyet. Readiness LIVE."
  },
  "cc0": {
   "status": "CHO-CREDENTIAL",
@@ -280,7 +284,7 @@
   "reported_paid": [],
   "reported_test": [],
   "coverage_alerted_for": null,
-  "last_check": "2026-11-18T21:23:51+07:00",
+  "last_check": "2026-11-18T22:00:12+07:00",
   "detail": "Chua co secret CC0_CF_API_TOKEN (token Cloudflare doc KV cc0-jobs, account cua Luân) - chua doc duoc don CC0."
  },
  "moltjobs": {
@@ -316,7 +320,7 @@
   },
   "agent_status": "ACTIVE",
   "seen_assignments": [],
-  "last_check": "2026-11-18T21:23:51+07:00",
+  "last_check": "2026-11-18T22:00:12+07:00",
   "detail": "Agent ACTIVE; 17 job mo; bid free thang 2026-11: 0/10. Stats: settled $42.3, fundedEmployers 1."
  },
  "owockibot": {
@@ -325,17 +329,17 @@
   "active_claim": null,
   "claims": [],
   "queued": [],
-  "last_check": "2026-11-18T21:23:53+07:00",
+  "last_check": "2026-11-18T22:00:14+07:00",
   "detail": "0 bounty dang mo; moi vong nay: 0; claim dang giu: khong."
  },
  "fiverr": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-18T21:23:54+07:00",
+  "last_check": "2026-11-18T22:00:15+07:00",
   "detail": "Ban goc doc hoat dong Fiverr qua Gmail (mail thong bao seller) - can Luân consent Gmail OAuth 1 lan (giai doan 2). Chua port phan doc mail."
  },
  "boards": {
   "status": "LIVE",
-  "last_check": "2026-11-18T21:23:54+07:00",
+  "last_check": "2026-11-18T22:00:15+07:00",
   "detail": "Superteam seen 21 listing (moi vong nay 0); RaptorX: winners=False, 402 bai nop; Taskmarket seen 243; HYRVE total 0; Frantic open 1, moved $2521. Loi nguon: khong",
   "superteam_seen": [
    "11de63d7-6dfb-444c-8587-3d73037a4ede",
@@ -643,7 +647,7 @@
  },
  "seller_inbox": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-18T21:24:01+07:00",
+  "last_check": "2026-11-18T22:00:23+07:00",
   "detail": "Phu thuoc Gmail OAuth (chua consent) - KHONG port phan doc mail. Cho Luân consent 1 lan (giai doan 2) de doc mail Gumroad/Codester/Wirestock/Adobe/Upwork/Dreamstime."
  }
 }
