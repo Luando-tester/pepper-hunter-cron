@@ -2,7 +2,7 @@
  "meta": {
   "created": "2026-11-10T20:34:15+07:00",
   "launch_notified": true,
-  "last_cycle": "2026-11-19T09:02:07+07:00",
+  "last_cycle": "2026-11-19T09:10:10+07:00",
   "last_commit": null
  },
  "synmerco": {
@@ -23,6 +23,7 @@
    "0a6df84a-d410-439e-be70-08c9ca584d1c",
    "0ec8f497-c936-4ea8-aebc-60fb0aed9cfb",
    "116c6961-dfda-4f53-99ec-6cd4e911a096",
+   "11f7c35e-1a86-433f-bd28-e2f1350f3456",
    "1298369b-30a0-440a-911f-dfcee4f79737",
    "1317ce15-be2b-4d21-9286-8957ab9859a5",
    "13c29f20-543e-4d04-aede-233c966c0dbf",
@@ -305,6 +306,12 @@
     "title": "7b05531d-8207-46f3-b429-370907a0c60f",
     "budget_cents": null,
     "reason": "research"
+   },
+   "11f7c35e-1a86-433f-bd28-e2f1350f3456": {
+    "reported_at": 1795054196.623288,
+    "title": "11f7c35e-1a86-433f-bd28-e2f1350f3456",
+    "budget_cents": null,
+    "reason": "data"
    }
   },
   "watch_ids": {
@@ -315,8 +322,8 @@
   },
   "readiness_alerted": false,
   "underbid_reject_alerted": {},
-  "last_check": "2026-11-19T09:01:56+07:00",
-  "detail": "Dang canh 3 intent mo, 0 bid cua minh dang mo, 3 cho duyet. Readiness LIVE."
+  "last_check": "2026-11-19T09:09:56+07:00",
+  "detail": "Dang canh 4 intent mo, 0 bid cua minh dang mo, 4 cho duyet. Readiness LIVE."
  },
  "cc0": {
   "status": "CHO-CREDENTIAL",
@@ -324,7 +331,7 @@
   "reported_paid": [],
   "reported_test": [],
   "coverage_alerted_for": null,
-  "last_check": "2026-11-19T09:01:57+07:00",
+  "last_check": "2026-11-19T09:09:57+07:00",
   "detail": "Chua co secret CC0_CF_API_TOKEN (token Cloudflare doc KV cc0-jobs, account cua Luân) - chua doc duoc don CC0."
  },
  "moltjobs": {
@@ -360,7 +367,7 @@
   },
   "agent_status": "ACTIVE",
   "seen_assignments": [],
-  "last_check": "2026-11-19T09:01:57+07:00",
+  "last_check": "2026-11-19T09:09:57+07:00",
   "detail": "Agent ACTIVE; 16 job mo; bid free thang 2026-11: 0/10. Stats: settled $42.3, fundedEmployers 1."
  },
  "owockibot": {
@@ -369,18 +376,18 @@
   "active_claim": null,
   "claims": [],
   "queued": [],
-  "last_check": "2026-11-19T09:01:58+07:00",
+  "last_check": "2026-11-19T09:09:58+07:00",
   "detail": "0 bounty dang mo; moi vong nay: 0; claim dang giu: khong."
  },
  "fiverr": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-19T09:02:00+07:00",
+  "last_check": "2026-11-19T09:10:00+07:00",
   "detail": "Ban goc doc hoat dong Fiverr qua Gmail (mail thong bao seller) - can Luân consent Gmail OAuth 1 lan (giai doan 2). Chua port phan doc mail."
  },
  "boards": {
   "status": "LIVE",
-  "last_check": "2026-11-19T09:02:00+07:00",
-  "detail": "Superteam seen 21 listing (moi vong nay 0); RaptorX: winners=False, 402 bai nop; Taskmarket seen 277; HYRVE total 0; Frantic open 1, moved $2521. Loi nguon: khong",
+  "last_check": "2026-11-19T09:10:00+07:00",
+  "detail": "Superteam seen 21 listing (moi vong nay 0); RaptorX: winners=False, 402 bai nop; Taskmarket seen 281; HYRVE total 0; Frantic open 1, moved $2521. Loi nguon: khong",
   "superteam_seen": [
    "11de63d7-6dfb-444c-8587-3d73037a4ede",
    "15ec1b70-443d-4ac3-8b69-786368c7c48e",
@@ -429,6 +436,7 @@
    "TSK-2KX4NHE2",
    "TSK-2NY6T5MA",
    "TSK-2RVTZNXW",
+   "TSK-2TQG8SA1",
    "TSK-2TR8XA85",
    "TSK-2YFKJ8G1",
    "TSK-33MBFWQA",
@@ -512,6 +520,7 @@
    "TSK-CF982SE6",
    "TSK-CKWVBNH9",
    "TSK-CNM2RETS",
+   "TSK-CQD157Q8",
    "TSK-CRKNQJ4J",
    "TSK-CVMJED69",
    "TSK-CYPCK2E8",
@@ -675,6 +684,7 @@
    "TSK-XZWGAKD0",
    "TSK-Y6S148AS",
    "TSK-Y8EN74NK",
+   "TSK-YFRZH2SJ",
    "TSK-YG5V3GQF",
    "TSK-YWNTF543",
    "TSK-Z1S4BAV7",
@@ -682,6 +692,7 @@
    "TSK-ZDAJ856A",
    "TSK-ZDCBY09E",
    "TSK-ZEV408PV",
+   "TSK-ZEWBN3C7",
    "TSK-ZH9KBJXG",
    "TSK-ZK5FTWX6",
    "TSK-ZMEWF6QZ",
@@ -721,7 +732,7 @@
  },
  "seller_inbox": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-19T09:02:07+07:00",
+  "last_check": "2026-11-19T09:10:06+07:00",
   "detail": "Phu thuoc Gmail OAuth (chua consent) - KHONG port phan doc mail. Cho Luân consent 1 lan (giai doan 2) de doc mail Gumroad/Codester/Wirestock/Adobe/Upwork/Dreamstime."
  }
 }
