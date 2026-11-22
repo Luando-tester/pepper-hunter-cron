@@ -2,7 +2,7 @@
  "meta": {
   "created": "2026-11-10T20:34:15+07:00",
   "launch_notified": true,
-  "last_cycle": "2026-11-23T06:23:53+07:00",
+  "last_cycle": "2026-11-23T06:39:48+07:00",
   "last_commit": null
  },
  "synmerco": {
@@ -351,7 +351,7 @@
   },
   "readiness_alerted": false,
   "underbid_reject_alerted": {},
-  "last_check": "2026-11-23T06:23:37+07:00",
+  "last_check": "2026-11-23T06:39:37+07:00",
   "detail": "Dang canh 0 intent mo, 0 bid cua minh dang mo, 0 cho duyet. Readiness LIVE."
  },
  "cc0": {
@@ -360,7 +360,7 @@
   "reported_paid": [],
   "reported_test": [],
   "coverage_alerted_for": null,
-  "last_check": "2026-11-23T06:23:38+07:00",
+  "last_check": "2026-11-23T06:39:38+07:00",
   "detail": "Chua co secret CC0_CF_API_TOKEN (token Cloudflare doc KV cc0-jobs, account cua Luân) - chua doc duoc don CC0."
  },
  "moltjobs": {
@@ -396,7 +396,7 @@
   },
   "agent_status": "ACTIVE",
   "seen_assignments": [],
-  "last_check": "2026-11-23T06:23:38+07:00",
+  "last_check": "2026-11-23T06:39:38+07:00",
   "detail": "Agent ACTIVE; 16 job mo; bid free thang 2026-11: 0/10. Stats: settled $42.3, fundedEmployers 1."
  },
  "owockibot": {
@@ -405,18 +405,18 @@
   "active_claim": null,
   "claims": [],
   "queued": [],
-  "last_check": "2026-11-23T06:23:40+07:00",
+  "last_check": "2026-11-23T06:39:40+07:00",
   "detail": "0 bounty dang mo; moi vong nay: 0; claim dang giu: khong."
  },
  "fiverr": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-23T06:23:43+07:00",
+  "last_check": "2026-11-23T06:39:42+07:00",
   "detail": "Ban goc doc hoat dong Fiverr qua Gmail (mail thong bao seller) - can Luân consent Gmail OAuth 1 lan (giai doan 2). Chua port phan doc mail."
  },
  "boards": {
   "status": "LIVE",
-  "last_check": "2026-11-23T06:23:43+07:00",
-  "detail": "Superteam seen 21 listing (moi vong nay 0); RaptorX: winners=False, 402 bai nop; Taskmarket seen 637; HYRVE total 0; Frantic open 1, moved $2521. Loi nguon: khong",
+  "last_check": "2026-11-23T06:39:42+07:00",
+  "detail": "Superteam seen 21 listing (moi vong nay 0); RaptorX: winners=False, 402 bai nop; Taskmarket seen 654; HYRVE total 0; Frantic open 1, moved $2521. Loi nguon: khong",
   "superteam_seen": [
    "11de63d7-6dfb-444c-8587-3d73037a4ede",
    "15ec1b70-443d-4ac3-8b69-786368c7c48e",
@@ -467,6 +467,7 @@
    "TSK-0WR5ARBF",
    "TSK-0WV3EH2E",
    "TSK-0YWJWMD1",
+   "TSK-10K4EV0E",
    "TSK-13680DAW",
    "TSK-140HGH6S",
    "TSK-154JMNZC",
@@ -526,11 +527,14 @@
    "TSK-46RX6WM2",
    "TSK-48R48D8V",
    "TSK-49EVQHWS",
+   "TSK-4DQM6AYC",
    "TSK-4JERND98",
+   "TSK-4JRPA6M0",
    "TSK-4MF233JB",
    "TSK-4N0VNRYD",
    "TSK-4PSDG4X4",
    "TSK-4RCAJEAQ",
+   "TSK-4S915J0E",
    "TSK-4SNAK527",
    "TSK-4VTQG6E4",
    "TSK-4YD2228A",
@@ -603,6 +607,7 @@
    "TSK-7YWG4532",
    "TSK-7ZZEH75C",
    "TSK-80B9RFQ4",
+   "TSK-80ZE4GK9",
    "TSK-822VYQS7",
    "TSK-836Z6Q65",
    "TSK-83CAJHPJ",
@@ -628,6 +633,7 @@
    "TSK-9C7ZWWRN",
    "TSK-9E5E1JTK",
    "TSK-9E9AMJWV",
+   "TSK-9EXAEK68",
    "TSK-9F0D9YKN",
    "TSK-9G4TG11D",
    "TSK-9JXR7686",
@@ -700,6 +706,7 @@
    "TSK-D1ZFGSD4",
    "TSK-D6A7YDF1",
    "TSK-D6YBKCV2",
+   "TSK-D772JHCA",
    "TSK-D8D0N75S",
    "TSK-D9JA2RSB",
    "TSK-DAKC3MT8",
@@ -731,6 +738,7 @@
    "TSK-EFZVJ92A",
    "TSK-EHBZKF0R",
    "TSK-EHHM4M72",
+   "TSK-EPXY6QEM",
    "TSK-EQEW48KV",
    "TSK-EREGX2YS",
    "TSK-ESV9V2KJ",
@@ -741,6 +749,7 @@
    "TSK-EY6KG6M0",
    "TSK-EYGQFQ2Z",
    "TSK-F0RJN6EP",
+   "TSK-F1NC1SG6",
    "TSK-F1YAX5WD",
    "TSK-F8S2WCZS",
    "TSK-F97SVG00",
@@ -753,6 +762,7 @@
    "TSK-FK0KSHXS",
    "TSK-FP6PDSS2",
    "TSK-FZ56EMKC",
+   "TSK-FZWGB3GA",
    "TSK-G0Q1RAYT",
    "TSK-G2SW6E7B",
    "TSK-G39Q6MWJ",
@@ -805,9 +815,11 @@
    "TSK-J7R19N82",
    "TSK-J94NQ2JG",
    "TSK-JBRH8GQ7",
+   "TSK-JCT2PZBR",
    "TSK-JF464N2X",
    "TSK-JHFVR8VD",
    "TSK-JJGE3996",
+   "TSK-JJQBD8Q2",
    "TSK-JK0GCAQ1",
    "TSK-JKVSTHB7",
    "TSK-JNWKA5VS",
@@ -819,6 +831,7 @@
    "TSK-JXGAVV4Q",
    "TSK-JZ8NVHTC",
    "TSK-JZN57NQ7",
+   "TSK-K3DP5AQG",
    "TSK-K6CX2YQQ",
    "TSK-K91857N6",
    "TSK-KDCX1D9F",
@@ -937,6 +950,7 @@
    "TSK-RJN05HSY",
    "TSK-RKF4PV78",
    "TSK-RPKP09HY",
+   "TSK-RRQ4ET8J",
    "TSK-RV3DM76D",
    "TSK-RVZNRJ2Q",
    "TSK-RZJ8E9ZT",
@@ -959,6 +973,7 @@
    "TSK-SV0PPSQ9",
    "TSK-SY1PF0ZD",
    "TSK-SYP42Y6Q",
+   "TSK-SYXAW8KH",
    "TSK-T0E9WHEV",
    "TSK-T24RYAC2",
    "TSK-T2K27GQM",
@@ -1019,6 +1034,7 @@
    "TSK-WMZV2P2D",
    "TSK-WNXDSBD6",
    "TSK-WPB1B862",
+   "TSK-WPN388JA",
    "TSK-WRBFJHNT",
    "TSK-WS0PGGED",
    "TSK-WVDG0T2N",
@@ -1045,6 +1061,7 @@
    "TSK-XWDESNJS",
    "TSK-XWRT9FP1",
    "TSK-XXW7GTMR",
+   "TSK-XZGVCCW8",
    "TSK-XZJSG40D",
    "TSK-XZWGAKD0",
    "TSK-Y23NS7GZ",
@@ -1238,7 +1255,7 @@
  },
  "seller_inbox": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-23T06:23:49+07:00",
+  "last_check": "2026-11-23T06:39:48+07:00",
   "detail": "Phu thuoc Gmail OAuth (chua consent) - KHONG port phan doc mail. Cho Luân consent 1 lan (giai doan 2) de doc mail Gumroad/Codester/Wirestock/Adobe/Upwork/Dreamstime."
  }
 }
