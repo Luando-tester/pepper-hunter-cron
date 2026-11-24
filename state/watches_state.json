@@ -2,7 +2,7 @@
  "meta": {
   "created": "2026-11-10T20:34:15+07:00",
   "launch_notified": true,
-  "last_cycle": "2026-11-24T12:04:37+07:00",
+  "last_cycle": "2026-11-24T12:20:32+07:00",
   "last_commit": null
  },
  "synmerco": {
@@ -351,7 +351,7 @@
   },
   "readiness_alerted": false,
   "underbid_reject_alerted": {},
-  "last_check": "2026-11-24T12:04:23+07:00",
+  "last_check": "2026-11-24T12:20:23+07:00",
   "detail": "Dang canh 0 intent mo, 0 bid cua minh dang mo, 0 cho duyet. Readiness LIVE."
  },
  "cc0": {
@@ -360,7 +360,7 @@
   "reported_paid": [],
   "reported_test": [],
   "coverage_alerted_for": null,
-  "last_check": "2026-11-24T12:04:23+07:00",
+  "last_check": "2026-11-24T12:20:23+07:00",
   "detail": "Chua co secret CC0_CF_API_TOKEN (token Cloudflare doc KV cc0-jobs, account cua Luân) - chua doc duoc don CC0."
  },
  "moltjobs": {
@@ -397,7 +397,7 @@
   },
   "agent_status": "ACTIVE",
   "seen_assignments": [],
-  "last_check": "2026-11-24T12:04:23+07:00",
+  "last_check": "2026-11-24T12:20:23+07:00",
   "detail": "Agent ACTIVE; 17 job mo; bid free thang 2026-11: 0/10. Stats: settled $42.3, fundedEmployers 1."
  },
  "owockibot": {
@@ -406,18 +406,18 @@
   "active_claim": null,
   "claims": [],
   "queued": [],
-  "last_check": "2026-11-24T12:04:25+07:00",
+  "last_check": "2026-11-24T12:20:25+07:00",
   "detail": "0 bounty dang mo; moi vong nay: 0; claim dang giu: khong."
  },
  "fiverr": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-24T12:04:26+07:00",
+  "last_check": "2026-11-24T12:20:26+07:00",
   "detail": "Ban goc doc hoat dong Fiverr qua Gmail (mail thong bao seller) - can Luân consent Gmail OAuth 1 lan (giai doan 2). Chua port phan doc mail."
  },
  "boards": {
   "status": "LIVE",
-  "last_check": "2026-11-24T12:04:26+07:00",
-  "detail": "Superteam seen 22 listing (moi vong nay 0); RaptorX: winners=False, 402 bai nop; Taskmarket seen 725; HYRVE total 0; Frantic open 1, moved $2521. Loi nguon: khong",
+  "last_check": "2026-11-24T12:20:26+07:00",
+  "detail": "Superteam seen 22 listing (moi vong nay 0); RaptorX: winners=False, 402 bai nop; Taskmarket seen 734; HYRVE total 0; Frantic open 1, moved $2521. Loi nguon: khong",
   "superteam_seen": [
    "11de63d7-6dfb-444c-8587-3d73037a4ede",
    "15ec1b70-443d-4ac3-8b69-786368c7c48e",
@@ -552,6 +552,7 @@
    "TSK-4SNAK527",
    "TSK-4VED1BDD",
    "TSK-4VTQG6E4",
+   "TSK-4XS0MR4F",
    "TSK-4YD2228A",
    "TSK-4ZMPB9HE",
    "TSK-4ZRKWC6S",
@@ -629,6 +630,7 @@
    "TSK-836Z6Q65",
    "TSK-83CAJHPJ",
    "TSK-83VQT9R8",
+   "TSK-8678H9SX",
    "TSK-86ZR2Y25",
    "TSK-896H8VKA",
    "TSK-8CX4RJFF",
@@ -639,6 +641,7 @@
    "TSK-8HHGEGDF",
    "TSK-8NKD076E",
    "TSK-8SNF442D",
+   "TSK-8TJVTH95",
    "TSK-8TYT47PB",
    "TSK-8VVN6XVK",
    "TSK-9061JCWV",
@@ -682,6 +685,7 @@
    "TSK-ARZNGSX0",
    "TSK-AWSBFNKG",
    "TSK-B0QVNCPG",
+   "TSK-B3E5CKWZ",
    "TSK-B3NJD5GX",
    "TSK-B6B2VSJC",
    "TSK-B6YFBN8E",
@@ -771,6 +775,7 @@
    "TSK-EQ99FHTY",
    "TSK-EQEW48KV",
    "TSK-EREGX2YS",
+   "TSK-ESKGA4XS",
    "TSK-ESV9V2KJ",
    "TSK-ET8W0F7Q",
    "TSK-ETVRK7P5",
@@ -797,6 +802,7 @@
    "TSK-FZWGB3GA",
    "TSK-G0Q1RAYT",
    "TSK-G2SW6E7B",
+   "TSK-G2TYMQ5X",
    "TSK-G39Q6MWJ",
    "TSK-G3JV5PV8",
    "TSK-G460WBTB",
@@ -964,6 +970,7 @@
    "TSK-Q6TM3PX7",
    "TSK-Q7BAHXN6",
    "TSK-Q7BDFXA4",
+   "TSK-Q90RDKQ4",
    "TSK-QC3NZ7AB",
    "TSK-QC6Q6QQD",
    "TSK-QCB9QGD5",
@@ -1114,6 +1121,7 @@
    "TSK-X7V5R4ZA",
    "TSK-XAADJBP3",
    "TSK-XCK6DHA3",
+   "TSK-XDE08CYJ",
    "TSK-XDM4FV40",
    "TSK-XF8TK73X",
    "TSK-XG6ZTJKY",
@@ -1154,6 +1162,7 @@
    "TSK-Z5VKS8FK",
    "TSK-Z634S3XS",
    "TSK-Z650DAKT",
+   "TSK-Z72FZE64",
    "TSK-Z7VB08ZB",
    "TSK-Z8PHCEBF",
    "TSK-Z9P0H6N0",
@@ -1328,7 +1337,7 @@
  },
  "seller_inbox": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-24T12:04:32+07:00",
+  "last_check": "2026-11-24T12:20:32+07:00",
   "detail": "Phu thuoc Gmail OAuth (chua consent) - KHONG port phan doc mail. Cho Luân consent 1 lan (giai doan 2) de doc mail Gumroad/Codester/Wirestock/Adobe/Upwork/Dreamstime."
  }
 }
