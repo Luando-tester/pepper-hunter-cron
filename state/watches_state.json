@@ -2,7 +2,7 @@
  "meta": {
   "created": "2026-11-10T20:34:15+07:00",
   "launch_notified": true,
-  "last_cycle": "2026-11-27T05:10:32+07:00",
+  "last_cycle": "2026-11-27T05:26:32+07:00",
   "last_commit": null
  },
  "synmerco": {
@@ -376,7 +376,7 @@
   },
   "readiness_alerted": false,
   "underbid_reject_alerted": {},
-  "last_check": "2026-11-27T05:10:22+07:00",
+  "last_check": "2026-11-27T05:26:22+07:00",
   "detail": "Dang canh 0 intent mo, 0 bid cua minh dang mo, 0 cho duyet. Readiness LIVE."
  },
  "cc0": {
@@ -385,7 +385,7 @@
   "reported_paid": [],
   "reported_test": [],
   "coverage_alerted_for": null,
-  "last_check": "2026-11-27T05:10:23+07:00",
+  "last_check": "2026-11-27T05:26:23+07:00",
   "detail": "Chua co secret CC0_CF_API_TOKEN (token Cloudflare doc KV cc0-jobs, account cua Luân) - chua doc duoc don CC0."
  },
  "moltjobs": {
@@ -423,7 +423,7 @@
   },
   "agent_status": "ACTIVE",
   "seen_assignments": [],
-  "last_check": "2026-11-27T05:10:23+07:00",
+  "last_check": "2026-11-27T05:26:23+07:00",
   "detail": "Agent ACTIVE; 17 job mo; bid free thang 2026-11: 0/10. Stats: settled $42.3, fundedEmployers 1."
  },
  "owockibot": {
@@ -432,18 +432,18 @@
   "active_claim": null,
   "claims": [],
   "queued": [],
-  "last_check": "2026-11-27T05:10:25+07:00",
+  "last_check": "2026-11-27T05:26:25+07:00",
   "detail": "0 bounty dang mo; moi vong nay: 0; claim dang giu: khong."
  },
  "fiverr": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-27T05:10:26+07:00",
+  "last_check": "2026-11-27T05:26:26+07:00",
   "detail": "Ban goc doc hoat dong Fiverr qua Gmail (mail thong bao seller) - can Luân consent Gmail OAuth 1 lan (giai doan 2). Chua port phan doc mail."
  },
  "boards": {
   "status": "LIVE",
-  "last_check": "2026-11-27T05:10:26+07:00",
-  "detail": "Superteam seen 23 listing (moi vong nay 0); RaptorX: winners=False, 402 bai nop; Taskmarket seen 1222; HYRVE total 0; Frantic open 1, moved $2548. Loi nguon: khong",
+  "last_check": "2026-11-27T05:26:26+07:00",
+  "detail": "Superteam seen 23 listing (moi vong nay 0); RaptorX: winners=False, 402 bai nop; Taskmarket seen 1231; HYRVE total 0; Frantic open 1, moved $2548. Loi nguon: khong",
   "superteam_seen": [
    "11de63d7-6dfb-444c-8587-3d73037a4ede",
    "15ec1b70-443d-4ac3-8b69-786368c7c48e",
@@ -549,6 +549,7 @@
    "TSK-22Y44KNQ",
    "TSK-277A2535",
    "TSK-27MKN997",
+   "TSK-27XTRD6B",
    "TSK-289QQQGZ",
    "TSK-28YH2939",
    "TSK-2BG4XZGZ",
@@ -647,6 +648,7 @@
    "TSK-4VD8Z9B8",
    "TSK-4VED1BDD",
    "TSK-4VH92C10",
+   "TSK-4VSSTZC8",
    "TSK-4VTQG6E4",
    "TSK-4W92H5KN",
    "TSK-4XAJP2NK",
@@ -879,6 +881,7 @@
    "TSK-APRPHW0Z",
    "TSK-AQDQC1T6",
    "TSK-ARZNGSX0",
+   "TSK-AT1SGNQM",
    "TSK-AWSBFNKG",
    "TSK-AX4QN78W",
    "TSK-AYAV1G1Z",
@@ -953,6 +956,7 @@
    "TSK-CRKNQJ4J",
    "TSK-CS32NT58",
    "TSK-CSPSY0GV",
+   "TSK-CT63G1JB",
    "TSK-CVMJED69",
    "TSK-CW0CTB1F",
    "TSK-CXJVTGAB",
@@ -1140,6 +1144,7 @@
    "TSK-HKNRF0NR",
    "TSK-HKWY2M8F",
    "TSK-HM2RNDGN",
+   "TSK-HM8JWZ79",
    "TSK-HP5HSP7X",
    "TSK-HPHJ7R00",
    "TSK-HPMWK3H0",
@@ -1255,6 +1260,7 @@
    "TSK-MQFZX4EG",
    "TSK-MQYMCA4B",
    "TSK-MR5BBYHB",
+   "TSK-MRPWJ9F7",
    "TSK-MSNCPVJD",
    "TSK-MVBPXSQF",
    "TSK-MWBQV8KX",
@@ -1333,6 +1339,7 @@
    "TSK-PS245A0G",
    "TSK-PS8K8S8N",
    "TSK-PSH3S6DJ",
+   "TSK-PW81AM4N",
    "TSK-PWDFJ564",
    "TSK-PXE3PP70",
    "TSK-PXQAGQMV",
@@ -1354,6 +1361,7 @@
    "TSK-Q6TM3PX7",
    "TSK-Q7BAHXN6",
    "TSK-Q7BDFXA4",
+   "TSK-Q7T7YPVH",
    "TSK-Q90RDKQ4",
    "TSK-Q9PNC1V1",
    "TSK-QC3NZ7AB",
@@ -1542,6 +1550,7 @@
    "TSK-W0RH8MYD",
    "TSK-W1YR6Z1R",
    "TSK-W3H3N9RV",
+   "TSK-W3K0Y0TJ",
    "TSK-W3STWA92",
    "TSK-W3Y20C5A",
    "TSK-W4Y7DHW8",
@@ -1852,7 +1861,7 @@
  },
  "seller_inbox": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-27T05:10:32+07:00",
+  "last_check": "2026-11-27T05:26:32+07:00",
   "detail": "Phu thuoc Gmail OAuth (chua consent) - KHONG port phan doc mail. Cho Luân consent 1 lan (giai doan 2) de doc mail Gumroad/Codester/Wirestock/Adobe/Upwork/Dreamstime."
  }
 }
