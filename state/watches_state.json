@@ -2,7 +2,7 @@
  "meta": {
   "created": "2026-11-10T20:34:15+07:00",
   "launch_notified": true,
-  "last_cycle": "2026-11-26T15:11:37+07:00",
+  "last_cycle": "2026-11-26T15:27:37+07:00",
   "last_commit": null
  },
  "synmerco": {
@@ -376,7 +376,7 @@
   },
   "readiness_alerted": false,
   "underbid_reject_alerted": {},
-  "last_check": "2026-11-26T15:11:26+07:00",
+  "last_check": "2026-11-26T15:27:26+07:00",
   "detail": "Dang canh 0 intent mo, 0 bid cua minh dang mo, 0 cho duyet. Readiness LIVE."
  },
  "cc0": {
@@ -385,7 +385,7 @@
   "reported_paid": [],
   "reported_test": [],
   "coverage_alerted_for": null,
-  "last_check": "2026-11-26T15:11:27+07:00",
+  "last_check": "2026-11-26T15:27:27+07:00",
   "detail": "Chua co secret CC0_CF_API_TOKEN (token Cloudflare doc KV cc0-jobs, account cua Luân) - chua doc duoc don CC0."
  },
  "moltjobs": {
@@ -423,7 +423,7 @@
   },
   "agent_status": "ACTIVE",
   "seen_assignments": [],
-  "last_check": "2026-11-26T15:11:27+07:00",
+  "last_check": "2026-11-26T15:27:27+07:00",
   "detail": "Agent ACTIVE; 18 job mo; bid free thang 2026-11: 0/10. Stats: settled $42.3, fundedEmployers 1."
  },
  "owockibot": {
@@ -432,18 +432,18 @@
   "active_claim": null,
   "claims": [],
   "queued": [],
-  "last_check": "2026-11-26T15:11:29+07:00",
+  "last_check": "2026-11-26T15:27:29+07:00",
   "detail": "0 bounty dang mo; moi vong nay: 0; claim dang giu: khong."
  },
  "fiverr": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-26T15:11:31+07:00",
+  "last_check": "2026-11-26T15:27:31+07:00",
   "detail": "Ban goc doc hoat dong Fiverr qua Gmail (mail thong bao seller) - can Luân consent Gmail OAuth 1 lan (giai doan 2). Chua port phan doc mail."
  },
  "boards": {
   "status": "LIVE",
-  "last_check": "2026-11-26T15:11:31+07:00",
-  "detail": "Superteam seen 23 listing (moi vong nay 0); RaptorX: winners=False, 402 bai nop; Taskmarket seen 1040; HYRVE total 0; Frantic open 2, moved $2548. Loi nguon: khong",
+  "last_check": "2026-11-26T15:27:31+07:00",
+  "detail": "Superteam seen 23 listing (moi vong nay 0); RaptorX: winners=False, 402 bai nop; Taskmarket seen 1048; HYRVE total 0; Frantic open 1, moved $2548. Loi nguon: khong",
   "superteam_seen": [
    "11de63d7-6dfb-444c-8587-3d73037a4ede",
    "15ec1b70-443d-4ac3-8b69-786368c7c48e",
@@ -513,6 +513,7 @@
    "TSK-140HGH6S",
    "TSK-14AC0EKF",
    "TSK-154JMNZC",
+   "TSK-172CD0E0",
    "TSK-18R29K9F",
    "TSK-19ZXEW5G",
    "TSK-1AYD7B8J",
@@ -525,6 +526,7 @@
    "TSK-1NR59TQM",
    "TSK-1Q8EHH8A",
    "TSK-1R1MFT82",
+   "TSK-1RH98VPJ",
    "TSK-1SCNBYTB",
    "TSK-1SSN0YQ8",
    "TSK-1V38G7X5",
@@ -661,6 +663,7 @@
    "TSK-5Q1A7EJ0",
    "TSK-5Q52AA11",
    "TSK-5RN75YE1",
+   "TSK-5S8Z5DPR",
    "TSK-5TVWARTC",
    "TSK-5VZA2FRD",
    "TSK-5X2J57CG",
@@ -675,6 +678,7 @@
    "TSK-67PB713H",
    "TSK-67QC08N5",
    "TSK-68M75NEX",
+   "TSK-68Q4W1EP",
    "TSK-69AN52HH",
    "TSK-6ABTEZ3S",
    "TSK-6AMS9A2J",
@@ -692,6 +696,7 @@
    "TSK-6JB6WM34",
    "TSK-6KY9GY8T",
    "TSK-6MX02G62",
+   "TSK-6NCSSNYA",
    "TSK-6NYYYS0M",
    "TSK-6RW06814",
    "TSK-6SVCCX32",
@@ -1273,6 +1278,7 @@
    "TSK-REVN7W5W",
    "TSK-REYM7FP0",
    "TSK-RF3NJKCB",
+   "TSK-RFGMNQKV",
    "TSK-RH0J02AZ",
    "TSK-RH9H9R4B",
    "TSK-RJN05HSY",
@@ -1288,6 +1294,7 @@
    "TSK-RVZNRJ2Q",
    "TSK-RWG01X9W",
    "TSK-RXAKF7RC",
+   "TSK-RYCFCHBS",
    "TSK-RZJ8E9ZT",
    "TSK-S0B6T2FB",
    "TSK-S1ED5AK0",
@@ -1467,6 +1474,7 @@
    "TSK-YCBEFHA4",
    "TSK-YD8BYMBT",
    "TSK-YEHSG12C",
+   "TSK-YEJ8E4SQ",
    "TSK-YF8N7E47",
    "TSK-YFRZH2SJ",
    "TSK-YG5V3GQF",
@@ -1660,7 +1668,7 @@
    153
   ],
   "frantic": {
-   "bounties_open": 2,
+   "bounties_open": 1,
    "moved_usd": 2548,
    "funded_usd": 680
   },
@@ -1670,7 +1678,7 @@
  },
  "seller_inbox": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-26T15:11:37+07:00",
+  "last_check": "2026-11-26T15:27:37+07:00",
   "detail": "Phu thuoc Gmail OAuth (chua consent) - KHONG port phan doc mail. Cho Luân consent 1 lan (giai doan 2) de doc mail Gumroad/Codester/Wirestock/Adobe/Upwork/Dreamstime."
  }
 }
