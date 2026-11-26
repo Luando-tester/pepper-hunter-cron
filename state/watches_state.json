@@ -2,7 +2,7 @@
  "meta": {
   "created": "2026-11-10T20:34:15+07:00",
   "launch_notified": true,
-  "last_cycle": "2026-11-26T20:55:56+07:00",
+  "last_cycle": "2026-11-26T21:11:58+07:00",
   "last_commit": null
  },
  "synmerco": {
@@ -376,7 +376,7 @@
   },
   "readiness_alerted": false,
   "underbid_reject_alerted": {},
-  "last_check": "2026-11-26T20:55:47+07:00",
+  "last_check": "2026-11-26T21:11:47+07:00",
   "detail": "Dang canh 0 intent mo, 0 bid cua minh dang mo, 0 cho duyet. Readiness LIVE."
  },
  "cc0": {
@@ -385,7 +385,7 @@
   "reported_paid": [],
   "reported_test": [],
   "coverage_alerted_for": null,
-  "last_check": "2026-11-26T20:55:47+07:00",
+  "last_check": "2026-11-26T21:11:47+07:00",
   "detail": "Chua co secret CC0_CF_API_TOKEN (token Cloudflare doc KV cc0-jobs, account cua Luân) - chua doc duoc don CC0."
  },
  "moltjobs": {
@@ -423,7 +423,7 @@
   },
   "agent_status": "ACTIVE",
   "seen_assignments": [],
-  "last_check": "2026-11-26T20:55:47+07:00",
+  "last_check": "2026-11-26T21:11:47+07:00",
   "detail": "Agent ACTIVE; 18 job mo; bid free thang 2026-11: 0/10. Stats: settled $42.3, fundedEmployers 1."
  },
  "owockibot": {
@@ -432,18 +432,18 @@
   "active_claim": null,
   "claims": [],
   "queued": [],
-  "last_check": "2026-11-26T20:55:49+07:00",
+  "last_check": "2026-11-26T21:11:49+07:00",
   "detail": "0 bounty dang mo; moi vong nay: 0; claim dang giu: khong."
  },
  "fiverr": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-26T20:55:51+07:00",
+  "last_check": "2026-11-26T21:11:51+07:00",
   "detail": "Ban goc doc hoat dong Fiverr qua Gmail (mail thong bao seller) - can Luân consent Gmail OAuth 1 lan (giai doan 2). Chua port phan doc mail."
  },
  "boards": {
   "status": "LIVE",
-  "last_check": "2026-11-26T20:55:51+07:00",
-  "detail": "Superteam seen 23 listing (moi vong nay 0); RaptorX: winners=False, 402 bai nop; Taskmarket seen 1161; HYRVE total 0; Frantic open 1, moved $2548. Loi nguon: khong",
+  "last_check": "2026-11-26T21:11:51+07:00",
+  "detail": "Superteam seen 23 listing (moi vong nay 0); RaptorX: winners=False, 402 bai nop; Taskmarket seen 1169; HYRVE total 0; Frantic open 2, moved $2548. Loi nguon: khong",
   "superteam_seen": [
    "11de63d7-6dfb-444c-8587-3d73037a4ede",
    "15ec1b70-443d-4ac3-8b69-786368c7c48e",
@@ -513,6 +513,7 @@
    "TSK-0YF32G07",
    "TSK-0YWJWMD1",
    "TSK-10K4EV0E",
+   "TSK-11SXNMTC",
    "TSK-13680DAW",
    "TSK-13C64RSH",
    "TSK-140HGH6S",
@@ -837,6 +838,7 @@
    "TSK-A2FZWBXC",
    "TSK-A2P1VXMC",
    "TSK-A39A98ZF",
+   "TSK-A578ZTMP",
    "TSK-A5FPB6P6",
    "TSK-A8S56V04",
    "TSK-A9A75GAB",
@@ -1134,6 +1136,7 @@
    "TSK-J94NQ2JG",
    "TSK-JBPYTTVM",
    "TSK-JBRH8GQ7",
+   "TSK-JBWWJTYR",
    "TSK-JC2DR1R5",
    "TSK-JCT2PZBR",
    "TSK-JDJ7TWFX",
@@ -1276,6 +1279,7 @@
    "TSK-P81HWM88",
    "TSK-P8THH0NA",
    "TSK-P9A3ZB94",
+   "TSK-PDQZ173N",
    "TSK-PDTAC58Z",
    "TSK-PEDBZ9HT",
    "TSK-PG96NAFP",
@@ -1396,6 +1400,7 @@
    "TSK-S6VHE4FY",
    "TSK-S8JDGTZG",
    "TSK-SA8NAWWT",
+   "TSK-SAY3W1BA",
    "TSK-SBRQ84S5",
    "TSK-SC106WAG",
    "TSK-SCEC4V66",
@@ -1434,6 +1439,7 @@
    "TSK-T650B38Z",
    "TSK-T6ZVMVX7",
    "TSK-T8N4VAKE",
+   "TSK-T8S069BY",
    "TSK-TAAXB2PB",
    "TSK-TAM9YH5D",
    "TSK-TB3R5CKC",
@@ -1473,6 +1479,7 @@
    "TSK-VBA7B137",
    "TSK-VBBDBQ7G",
    "TSK-VCKQGHHV",
+   "TSK-VDHN7WWX",
    "TSK-VEZJ94NP",
    "TSK-VFX2KFT1",
    "TSK-VGV4KNVX",
@@ -1497,6 +1504,7 @@
    "TSK-W4Y7DHW8",
    "TSK-W5T6CDQX",
    "TSK-W894NAVA",
+   "TSK-W8GD7TH9",
    "TSK-W8KRPVWN",
    "TSK-W8VA1YND",
    "TSK-W9B44AJ3",
@@ -1781,7 +1789,7 @@
    153
   ],
   "frantic": {
-   "bounties_open": 1,
+   "bounties_open": 2,
    "moved_usd": 2548,
    "funded_usd": 680
   },
@@ -1791,7 +1799,7 @@
  },
  "seller_inbox": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-26T20:55:56+07:00",
+  "last_check": "2026-11-26T21:11:58+07:00",
   "detail": "Phu thuoc Gmail OAuth (chua consent) - KHONG port phan doc mail. Cho Luân consent 1 lan (giai doan 2) de doc mail Gumroad/Codester/Wirestock/Adobe/Upwork/Dreamstime."
  }
 }
