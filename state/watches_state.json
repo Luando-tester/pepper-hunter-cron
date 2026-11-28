@@ -2,7 +2,7 @@
  "meta": {
   "created": "2026-11-10T20:34:15+07:00",
   "launch_notified": true,
-  "last_cycle": "2026-11-29T02:59:26+07:00",
+  "last_cycle": "2026-11-29T03:01:34+07:00",
   "last_commit": null
  },
  "synmerco": {
@@ -67,6 +67,7 @@
    "3173c147-7551-48ef-8beb-c92e820e17ce",
    "318940b1-aba6-46ed-a32b-959324a415cb",
    "31952ecf-2239-417a-9add-58d85da6ae18",
+   "328a20dc-d3de-475d-9da4-748a1b0ee5b6",
    "348565b3-9ad9-4438-9530-ab3244071dc0",
    "34e491a5-e210-4c10-8625-cfa2b6198670",
    "350e3ae9-aee3-4bed-9725-171c320c464c",
@@ -204,6 +205,7 @@
    "8c714621-9bda-4bc6-b0b5-05304a0c3887",
    "8d3f5220-c69e-44ad-b34d-9f1d2a3022c5",
    "8d56ec16-e5b5-432b-8af0-ad79e0c33de4",
+   "8eb69a52-3997-4128-9b35-f098a505c9b8",
    "8ec5eddb-c3f8-4054-ab4a-de43470bfb57",
    "8f40ed3a-e749-4058-8048-c055071a8f9d",
    "8fa96de3-c002-41d7-ac8a-f5d5f8455004",
@@ -382,6 +384,18 @@
     "title": "0b0288b9-b60c-43b1-87bd-eb45705b328b",
     "budget_cents": null,
     "reason": "research"
+   },
+   "328a20dc-d3de-475d-9da4-748a1b0ee5b6": {
+    "reported_at": 1795896065.6988275,
+    "title": "328a20dc-d3de-475d-9da4-748a1b0ee5b6",
+    "budget_cents": null,
+    "reason": "data"
+   },
+   "8eb69a52-3997-4128-9b35-f098a505c9b8": {
+    "reported_at": 1795896065.9512963,
+    "title": "8eb69a52-3997-4128-9b35-f098a505c9b8",
+    "budget_cents": null,
+    "reason": "data"
    }
   },
   "watch_ids": {
@@ -392,8 +406,8 @@
   },
   "readiness_alerted": false,
   "underbid_reject_alerted": {},
-  "last_check": "2026-11-29T02:59:03+07:00",
-  "detail": "Dang canh 2 intent mo, 0 bid cua minh dang mo, 2 cho duyet. Readiness LIVE."
+  "last_check": "2026-11-29T03:01:03+07:00",
+  "detail": "Dang canh 4 intent mo, 0 bid cua minh dang mo, 4 cho duyet. Readiness LIVE."
  },
  "cc0": {
   "status": "CHO-CREDENTIAL",
@@ -401,7 +415,7 @@
   "reported_paid": [],
   "reported_test": [],
   "coverage_alerted_for": null,
-  "last_check": "2026-11-29T02:59:04+07:00",
+  "last_check": "2026-11-29T03:01:06+07:00",
   "detail": "Chua co secret CC0_CF_API_TOKEN (token Cloudflare doc KV cc0-jobs, account cua Luân) - chua doc duoc don CC0."
  },
  "moltjobs": {
@@ -439,7 +453,7 @@
   },
   "agent_status": "ACTIVE",
   "seen_assignments": [],
-  "last_check": "2026-11-29T02:59:04+07:00",
+  "last_check": "2026-11-29T03:01:06+07:00",
   "detail": "Agent ACTIVE; 17 job mo; bid free thang 2026-11: 0/10. Stats: settled $42.3, fundedEmployers 1."
  },
  "owockibot": {
@@ -448,18 +462,18 @@
   "active_claim": null,
   "claims": [],
   "queued": [],
-  "last_check": "2026-11-29T02:59:07+07:00",
+  "last_check": "2026-11-29T03:01:08+07:00",
   "detail": "0 bounty dang mo; moi vong nay: 0; claim dang giu: khong."
  },
  "fiverr": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-29T02:59:09+07:00",
+  "last_check": "2026-11-29T03:01:10+07:00",
   "detail": "Ban goc doc hoat dong Fiverr qua Gmail (mail thong bao seller) - can Luân consent Gmail OAuth 1 lan (giai doan 2). Chua port phan doc mail."
  },
  "boards": {
   "status": "LIVE",
-  "last_check": "2026-11-29T02:59:09+07:00",
-  "detail": "Superteam seen 23 listing (moi vong nay 0); RaptorX: winners=False, 402 bai nop; Taskmarket seen 1459; HYRVE total 0; Frantic open 1, moved $2570. Loi nguon: khong",
+  "last_check": "2026-11-29T03:01:10+07:00",
+  "detail": "Superteam seen 23 listing (moi vong nay 0); RaptorX: winners=False, 402 bai nop; Taskmarket seen 1460; HYRVE total 0; Frantic open 1, moved $2570. Loi nguon: khong",
   "superteam_seen": [
    "11de63d7-6dfb-444c-8587-3d73037a4ede",
    "15ec1b70-443d-4ac3-8b69-786368c7c48e",
@@ -1109,6 +1123,7 @@
    "TSK-DSHNCD2W",
    "TSK-DSJ3AAHZ",
    "TSK-DTBVFYBN",
+   "TSK-DVTWJH7V",
    "TSK-DWEDHSY5",
    "TSK-DXNKR11Y",
    "TSK-DZF6JVDT",
@@ -2105,7 +2120,7 @@
  },
  "seller_inbox": {
   "status": "CHO-CONSENT",
-  "last_check": "2026-11-29T02:59:15+07:00",
+  "last_check": "2026-11-29T03:01:16+07:00",
   "detail": "Phu thuoc Gmail OAuth (chua consent) - KHONG port phan doc mail. Cho Luân consent 1 lan (giai doan 2) de doc mail Gumroad/Codester/Wirestock/Adobe/Upwork/Dreamstime."
  }
 }
